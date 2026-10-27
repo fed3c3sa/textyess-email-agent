@@ -27,36 +27,27 @@ flowchart TD
     end
 
     subgraph STUDIO["Studio flow: write and edit emails"]
-        direction TB
-        SKILLGEN["Creates a skill<br/>(with design info)"]
-        SKILL[/"Brand skill<br/>generated from the JSON"/]
-        EMAIL["Produces email<br/>HTML, ready to send"]
-        SKILLGEN --> SKILL
-        SKILL -- loaded by --> EMAIL
+        EMAIL["Produces email<br/>HTML, ready to send<br/>(reads the whole design system JSON)"]
     end
 
     ORCH -- "calls (URL / docs)" --> SCRAPER
     CONF -- "website and PDF disagree" --> ORCH
     ORCH -. "asks the user, writes the chosen value" .-> USER
 
-    DS --> SKILLGEN
+    ORCH -- "prompt + design system" --> EMAIL
+    DS --> ORCH
     ASSETS --> EMAIL
-
-    ORCH -- "prompt" --> EMAIL
-    ORCH -- "prompt" --> SKILLGEN
-    EMAIL --> STORE
     EMAIL -- "email HTML" --> USER
+    EMAIL --> STORE
 
     USER -. "confirms 'keep this for future emails'" .-> ORCH
-    ORCH -- "appends learned_rules[]" --> DS
-    DS -- "regenerate skill" --> SKILLGEN
+    ORCH -- "appends user_notes[]" --> DS
 
     subgraph STORAGE["Storage"]
         STORE[("SQLite<br/>chat sessions + email versions<br/>(LangGraph SqliteSaver)")]
-        FILES[("Files on disk<br/>brands/&lt;id&gt;/design_system.json<br/>brands/&lt;id&gt;/assets/<br/>brands/&lt;id&gt;/skill/SKILL.md")]
+        FILES[("Files on disk<br/>brands/&lt;id&gt;/design_system.json<br/>brands/&lt;id&gt;/assets/")]
     end
     DS --- FILES
     ASSETS --- FILES
-    SKILL --- FILES
     ORCH --- STORE
 ```
