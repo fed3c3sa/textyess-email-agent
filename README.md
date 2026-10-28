@@ -10,12 +10,12 @@ flowchart TB
     SETUPUI(["<b>Entry 1: Setup screen</b><br/>URL + uploaded docs"])
     CHAT(["<b>Entry 2: Studio chat</b><br/>user messages"])
 
-    SCRAPER{{"<b>Brand scraper subagent</b><br/>multimodal model: reads docs and images"}}
+    SCRAPER{{"<b>3. Brand scraper subagent</b><br/>multimodal model, one run<br/>all images in its first message"}}
     ORCH{{"<b>Orchestrator agent</b> (LLM)<br/>reads the whole design system<br/>asks the user when information is missing<br/>the user can do everything from chat"}}
 
-    FSMW["Agent filesystem<br/>deepagents FilesystemMiddleware"]
-    WEB["scrape_website (Firecrawl)<br/>branding, text, HTML, screenshot, images"]
-    PDF["PDF prep (PyMuPDF)<br/>pages as images for the model<br/>logos and photos into assets"]
+    FSMW["Read-only file tools<br/>deepagents FilesystemMiddleware<br/>search the saved text"]
+    WEB["<b>1. Website</b> (Firecrawl)<br/>branding, text, HTML, screenshot, images"]
+    PDF["<b>2. PDFs</b> (PyMuPDF)<br/>pages as images for the model<br/>logos and photos into assets"]
 
     LEARN["learn_brand<br/>(url, docs)"]
     SECT["add / update / remove section<br/>email = list of sections + reasoning<br/>(subject, preheader, body parts)<br/>streamed to the chat (SSE)<br/>full HTML built by render_email()"]
@@ -28,27 +28,25 @@ flowchart TB
     CONF>"conflicts[]<br/>transient, never stored<br/>design system is saved with the PDF values<br/>(documents win over the website)<br/>user can override on the Setup screen or in the chat"]
 
     STORE[("SQLite<br/>LangGraph SqliteSaver checkpoints<br/>chat, current email, undo from history")]
-    FILES[("Files on disk<br/>brands/&lt;id&gt;/design_system.json<br/>brands/&lt;id&gt;/assets/<br/>brands/&lt;id&gt;/raw/ (raw HTML + CSS)<br/>brands/&lt;id&gt;/uploads/ (user files)")]
+    FILES[("Files on disk<br/>brands/&lt;id&gt;/design_system.json<br/>brands/&lt;id&gt;/assets/<br/>brands/&lt;id&gt;/raw/ (website text, HTML, screenshot, PDF pages)<br/>brands/&lt;id&gt;/uploads/ (user files)")]
 
     SP1[" "]
     SP2[" "]
     SETUPUI --- SP1
     SP1 -- "direct, bypasses the orchestrator" --- SP2
-    SP2 --> SCRAPER
+    SP2 --> WEB
     CHAT --> ORCH
 
     ORCH --> LEARN
     ORCH --> SECT
     ORCH --> NOTE
     ORCH --> UPDATE
-    LEARN -- "calls" --> SCRAPER
+    LEARN -- "calls" --> WEB
 
-    SCRAPER --> FSMW
-    SCRAPER --> WEB
-    SCRAPER --> PDF
-    FSMW --> RET
-    WEB --> RET
-    PDF --> RET
+    WEB --> PDF
+    PDF --> SCRAPER
+    SCRAPER -- "uses" --> FSMW
+    SCRAPER --> RET
 
     RET --> DS
     RET --> ASSETS
