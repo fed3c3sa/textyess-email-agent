@@ -16,7 +16,8 @@ class Section(BaseModel):
     """One part of the email.
 
     `reasoning` is declared before `content` on purpose: the model writes fields
-    in order, so the reason can be shown before the HTML arrives.
+    in order, so it decides why before it writes the HTML, and the HTML follows
+    from that decision.
     """
 
     id: str = Field(description="Stable handle used to update or remove this section.")
