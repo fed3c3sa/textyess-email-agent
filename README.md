@@ -6,54 +6,70 @@ An agent that given a website or document copies the brand identity to craft ema
 ### Backend graph
 
 ```mermaid
-flowchart TD
-    SETUPUI["Setup screen<br/>URL + uploaded docs"]
-    CHAT["Studio chat<br/>user messages"]
+flowchart TB
+    SETUPUI(["<b>Entry 1: Setup screen</b><br/>URL + uploaded docs"])
+    CHAT(["<b>Entry 2: Studio chat</b><br/>user messages"])
 
-    ORCH{{"Orchestrator agent (LLM)<br/>the user can do everything from chat<br/>reads the whole design system JSON"}}
+    SCRAPER{{"<b>Brand scraper subagent</b><br/>multimodal model: reads docs and images"}}
+    ORCH{{"<b>Orchestrator agent</b> (LLM)<br/>reads the whole design system<br/>the user can do everything from chat"}}
 
-    subgraph TOOLSORCH["Orchestrator tools"]
-        direction LR
-        LEARN["learn_brand(url, docs)"]
-        SECT["add_section / update_section / remove_section<br/>(email = list of sections with reasoning)"]
-        NOTE["save_note<br/>(after user confirms)"]
-    end
+    FSMW["Agent filesystem<br/>deepagents FilesystemMiddleware"]
+    WEB["Web browsing<br/>HTML + CSS + assets"]
+    PDF["PDF tools<br/>assets"]
 
-    subgraph SCRAPE["Brand scraper subagent"]
-        direction TB
-        SCRAPER["Agent + filesystem<br/>(deepagents FilesystemMiddleware)<br/>multimodal model (reads docs and images)"]
-        subgraph TOOLS["Tools"]
-            direction LR
-            WEB["Web browsing<br/>extracts HTML + CSS + assets"]
-            PDF["PDF tools<br/>extracts assets"]
-        end
-        SCRAPER -- uses --> TOOLS
-        SCRAPER --> RET["Returns"]
-        RET --> DS[("Design system JSON<br/>structured output")]
-        RET --> ASSETS[/"Assets dir"/]
-        RET --> CONF["conflicts[]<br/>(transient)"]
-    end
+    LEARN["learn_brand<br/>(url, docs)"]
+    SECT["add / update / remove section<br/>email = list of sections + reasoning<br/>streamed to the chat (SSE)"]
+    NOTE["save_note<br/>after the user confirms"]
 
-    SETUPUI -- "direct, bypasses the orchestrator" --> SCRAPER
-    CONF -- "setup: user resolves on the Setup screen" --> SETUPUI
+    RET{{"Scraper returns"}}
+    DS[("Design system JSON<br/>structured output")]
+    ASSETS[/"Assets dir"/]
+    CONF>"conflicts[]<br/>transient, never stored<br/>resolved by the user on the Setup screen<br/>or by the orchestrator in the chat"]
 
+    STORE[("SQLite<br/>chat sessions, current email, email versions<br/>LangGraph SqliteSaver")]
+    FILES[("Files on disk<br/>brands/&lt;id&gt;/design_system.json<br/>brands/&lt;id&gt;/assets/")]
+
+    SP1[" "]
+    SP2[" "]
+    SETUPUI --- SP1
+    SP1 -- "direct, bypasses the orchestrator" --- SP2
+    SP2 --> SCRAPER
     CHAT --> ORCH
-    ORCH --> TOOLSORCH
-    LEARN --> SCRAPER
-    CONF -- "chat: orchestrator asks the user" --> ORCH
-    DS -- "read" --> ORCH
-    ASSETS --> ORCH
-    SECT -- "email sections (streamed)" --> CHAT
-    ORCH -. "asks the user to confirm 'keep this for future emails'" .-> CHAT
-    NOTE -- "appends user_notes[]" --> DS
 
-    subgraph STORAGE["Storage"]
-        STORE[("SQLite<br/>chat sessions + current email + email versions<br/>(LangGraph SqliteSaver)")]
-        FILES[("Files on disk<br/>brands/&lt;id&gt;/design_system.json<br/>brands/&lt;id&gt;/assets/")]
-    end
-    ORCH --- STORE
+    ORCH --> LEARN
+    ORCH --> SECT
+    ORCH --> NOTE
+    LEARN -- "calls" --> SCRAPER
+
+    SCRAPER --> FSMW
+    SCRAPER --> WEB
+    SCRAPER --> PDF
+    FSMW --> RET
+    WEB --> RET
+    PDF --> RET
+
+    RET --> DS
+    RET --> ASSETS
+    RET --> CONF
+
+    NOTE -- "appends user_notes[]" --> DS
+    ORCH -. "reads" .-> DS
+    SECT --> STORE
     DS --- FILES
     ASSETS --- FILES
+
+    classDef hidden fill:none,stroke:none,color:none
+    classDef entry fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px,color:#1e3a8a
+    classDef agent fill:#ede9fe,stroke:#6d28d9,stroke-width:2px,color:#4c1d95
+    classDef tool fill:#fef9c3,stroke:#a16207,color:#713f12
+    classDef data fill:#dcfce7,stroke:#15803d,color:#14532d
+    classDef warn fill:#fee2e2,stroke:#b91c1c,color:#7f1d1d
+    class SETUPUI,CHAT entry
+    class ORCH,SCRAPER,RET agent
+    class LEARN,SECT,NOTE,FSMW,WEB,PDF tool
+    class DS,ASSETS,STORE,FILES data
+    class CONF warn
+    class SP1,SP2 hidden
 ```
 
 ### Stack
