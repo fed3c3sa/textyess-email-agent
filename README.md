@@ -104,6 +104,7 @@ flowchart TB
 | Undo reads the previous email from the LangGraph checkpoint history | No separate version storage |
 | Website images are used through their original public URL; the downloaded copy is only for the scraper to look at | The reader's email app loads them from the brand's site, so they work in a real inbox |
 | Images from PDFs and uploads are preview-only: the API serves them from `localhost`, which a reader's email app cannot reach | Making them work for readers means hosting them publicly (S3, a CDN, or the email platform's image hosting), which is deployment and out of scope |
+| A PDF is sent to the model as rendered page images, not as a file | Images carry the brand's look better (fonts, swatches, layout, button examples). Models like GLM 5.3 Flash accept images but not PDF files: OpenRouter would run OCR on the PDF and send text, and the model would lose the fonts and the visual style |
 | The design system is stored in its own file, not in checkpoints | It belongs to the brand and is shared by every chat session |
 | SSE events are a typed Pydantic union (`status`, `message`, `section_added`, `section_updated`, `section_removed`, `email_replaced`, `done`, `error`) | The frontend develops against a fixed contract |
 | Token usage and OpenRouter cost are recorded per run | The README must report cost and time |
