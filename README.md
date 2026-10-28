@@ -11,23 +11,24 @@ flowchart TB
     CHAT(["<b>Entry 2: Studio chat</b><br/>user messages"])
 
     SCRAPER{{"<b>Brand scraper subagent</b><br/>multimodal model: reads docs and images"}}
-    ORCH{{"<b>Orchestrator agent</b> (LLM)<br/>reads the whole design system<br/>the user can do everything from chat"}}
+    ORCH{{"<b>Orchestrator agent</b> (LLM)<br/>reads the whole design system<br/>asks the user when information is missing<br/>the user can do everything from chat"}}
 
     FSMW["Agent filesystem<br/>deepagents FilesystemMiddleware"]
     WEB["Web browsing<br/>HTML + CSS + assets"]
     PDF["PDF tools<br/>assets"]
 
     LEARN["learn_brand<br/>(url, docs)"]
-    SECT["add / update / remove section<br/>email = list of sections + reasoning<br/>streamed to the chat (SSE)"]
+    SECT["add / update / remove section<br/>email = list of sections + reasoning<br/>(subject, preheader, body parts)<br/>streamed to the chat (SSE)<br/>full HTML built by render_email()"]
     NOTE["save_note<br/>after the user confirms"]
+    UPDATE["update_design_system<br/>(field, value)<br/>conflict answers and corrections"]
 
     RET{{"Scraper returns"}}
-    DS[("Design system JSON<br/>structured output")]
+    DS[("Design system JSON<br/>structured output, all fields optional<br/>css = distilled rules, not the raw dump")]
     ASSETS[/"Assets dir"/]
-    CONF>"conflicts[]<br/>transient, never stored<br/>resolved by the user on the Setup screen<br/>or by the orchestrator in the chat"]
+    CONF>"conflicts[]<br/>transient, never stored<br/>design system is saved with the PDF values<br/>(documents win over the website)<br/>user can override on the Setup screen or in the chat"]
 
     STORE[("SQLite<br/>chat sessions, current email, email versions<br/>LangGraph SqliteSaver")]
-    FILES[("Files on disk<br/>brands/&lt;id&gt;/design_system.json<br/>brands/&lt;id&gt;/assets/")]
+    FILES[("Files on disk<br/>brands/&lt;id&gt;/design_system.json<br/>brands/&lt;id&gt;/assets/<br/>brands/&lt;id&gt;/raw/ (raw HTML + CSS)")]
 
     SP1[" "]
     SP2[" "]
@@ -39,6 +40,7 @@ flowchart TB
     ORCH --> LEARN
     ORCH --> SECT
     ORCH --> NOTE
+    ORCH --> UPDATE
     LEARN -- "calls" --> SCRAPER
 
     SCRAPER --> FSMW
@@ -53,6 +55,7 @@ flowchart TB
     RET --> CONF
 
     NOTE -- "appends user_notes[]" --> DS
+    UPDATE -- "writes the chosen value" --> DS
     ORCH -. "reads" .-> DS
     SECT --> STORE
     DS --- FILES
@@ -66,7 +69,7 @@ flowchart TB
     classDef warn fill:#fee2e2,stroke:#b91c1c,color:#7f1d1d
     class SETUPUI,CHAT entry
     class ORCH,SCRAPER,RET agent
-    class LEARN,SECT,NOTE,FSMW,WEB,PDF tool
+    class LEARN,SECT,NOTE,UPDATE,FSMW,WEB,PDF tool
     class DS,ASSETS,STORE,FILES data
     class CONF warn
     class SP1,SP2 hidden
