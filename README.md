@@ -7,13 +7,21 @@ An agent that given a website or document copies the brand identity to craft ema
 
 ```mermaid
 flowchart TD
-    USER["User messages<br/>(chat, URL, uploaded docs)"] --> ORCH
+    SETUPUI["Setup screen<br/>URL + uploaded docs"]
+    CHAT["Studio chat<br/>user messages"]
 
-    ORCH{{"Orchestrator<br/>(setup flow + studio flow)"}}
+    ORCH{{"Orchestrator agent (LLM)<br/>the user can do everything from chat<br/>reads the whole design system JSON"}}
 
-    subgraph SETUP["Setup flow: learn the brand"]
+    subgraph TOOLSORCH["Orchestrator tools"]
+        direction LR
+        LEARN["learn_brand(url, docs)"]
+        SECT["add_section / update_section / remove_section<br/>(email = list of sections with reasoning)"]
+        NOTE["save_note<br/>(after user confirms)"]
+    end
+
+    subgraph SCRAPE["Brand scraper subagent"]
         direction TB
-        SCRAPER["Brand scraper agent<br/>agent + filesystem<br/>multimodal model (reads docs and images)"]
+        SCRAPER["Agent + filesystem<br/>(deepagents FilesystemMiddleware)<br/>multimodal model (reads docs and images)"]
         subgraph TOOLS["Tools"]
             direction LR
             WEB["Web browsing<br/>extracts HTML + CSS + assets"]
@@ -26,30 +34,26 @@ flowchart TD
         RET --> CONF["conflicts[]<br/>(transient)"]
     end
 
-    subgraph STUDIO["Studio flow: write and edit emails"]
-        EMAIL["Produces email<br/>HTML, ready to send<br/>(reads the whole design system JSON)"]
-    end
+    SETUPUI -- "direct, bypasses the orchestrator" --> SCRAPER
+    CONF -- "setup: user resolves on the Setup screen" --> SETUPUI
 
-    ORCH -- "calls (URL / docs)" --> SCRAPER
-    CONF -- "website and PDF disagree" --> ORCH
-    ORCH -. "asks the user, writes the chosen value" .-> USER
-
-    ORCH -- "prompt + design system" --> EMAIL
-    DS --> ORCH
-    ASSETS --> EMAIL
-    EMAIL -- "email HTML" --> USER
-    EMAIL --> STORE
-
-    USER -. "confirms 'keep this for future emails'" .-> ORCH
-    ORCH -- "appends user_notes[]" --> DS
+    CHAT --> ORCH
+    ORCH --> TOOLSORCH
+    LEARN --> SCRAPER
+    CONF -- "chat: orchestrator asks the user" --> ORCH
+    DS -- "read" --> ORCH
+    ASSETS --> ORCH
+    SECT -- "email sections (streamed)" --> CHAT
+    ORCH -. "asks the user to confirm 'keep this for future emails'" .-> CHAT
+    NOTE -- "appends user_notes[]" --> DS
 
     subgraph STORAGE["Storage"]
-        STORE[("SQLite<br/>chat sessions + email versions<br/>(LangGraph SqliteSaver)")]
+        STORE[("SQLite<br/>chat sessions + current email + email versions<br/>(LangGraph SqliteSaver)")]
         FILES[("Files on disk<br/>brands/&lt;id&gt;/design_system.json<br/>brands/&lt;id&gt;/assets/")]
     end
+    ORCH --- STORE
     DS --- FILES
     ASSETS --- FILES
-    ORCH --- STORE
 ```
 
 ### Stack
@@ -64,6 +68,7 @@ flowchart TD
 | Data models | Pydantic v2 |
 | Scraper browsing | Playwright (async) |
 | PDF | PyMuPDF |
+| Agent filesystem | `deepagents` `FilesystemMiddleware`, `FilesystemBackend(root_dir=brands/<id>, virtual_mode=True)` |
 | Email HTML | `css-inline` |
 | Storage | SQLite + files on disk |
 
