@@ -102,7 +102,8 @@ flowchart TB
 | `reasoning` is written before `content` | The model decides why before it writes the HTML |
 | Email HTML is responsive: fluid tables and images, a `stack` class for columns on phones | Most marketing email is read on a phone |
 | Undo reads the previous email from the LangGraph checkpoint history | No separate version storage |
-| Local images (from PDFs and uploads) are served by the API and turned into full URLs | An email needs absolute image URLs; real sending needs hosting |
+| Website images are used through their original public URL; the downloaded copy is only for the scraper to look at | The reader's email app loads them from the brand's site, so they work in a real inbox |
+| Images from PDFs and uploads are preview-only: the API serves them from `localhost`, which a reader's email app cannot reach | Making them work for readers means hosting them publicly (S3, a CDN, or the email platform's image hosting), which is deployment and out of scope |
 | The design system is stored in its own file, not in checkpoints | It belongs to the brand and is shared by every chat session |
 | SSE events are a typed Pydantic union (`status`, `message`, `section_added`, `section_updated`, `section_removed`, `email_replaced`, `done`, `error`) | The frontend develops against a fixed contract |
 | Token usage and OpenRouter cost are recorded per run | The README must report cost and time |
