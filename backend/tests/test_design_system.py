@@ -8,7 +8,7 @@ def test_empty_design_system_is_valid():
     """A sparse website may fill nothing: every field has a default."""
     ds = DesignSystem()
     assert ds.colors == []
-    assert ds.email_constraints.width_px == 600
+    assert ds.email_constraints == []
 
 
 def test_json_round_trip():

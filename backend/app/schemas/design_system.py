@@ -82,15 +82,6 @@ class Asset(BaseModel):
     pointer: str = Field(description="Public URL of the image, or its path inside the brand's assets folder.")
 
 
-class EmailConstraints(BaseModel):
-    """Rules for email-safe HTML, separate from the website's CSS."""
-
-    width_px: int = Field(default=600, description="Width of the email's main table in pixels.")
-    footer_legal: str | None = Field(
-        default=None, description="Text the footer must always contain (address, unsubscribe line...)."
-    )
-
-
 class DesignSystem(BaseModel):
     """Everything the agent knows about how a brand looks and sounds."""
 
@@ -106,8 +97,10 @@ class DesignSystem(BaseModel):
         default_factory=list, description="Short HTML snippets (header, hero, cta, footer) from the brand."
     )
     assets: list[Asset] = Field(default_factory=list, description="Images the emails can use.")
-    email_constraints: EmailConstraints = Field(
-        default_factory=EmailConstraints, description="Rules for email-safe HTML."
+    email_constraints: list[str] = Field(
+        default_factory=list,
+        description="Constraints every email must respect, each written as a plain sentence, "
+        "e.g. 'Always end with the unsubscribe line' or 'Never use more than one CTA button'.",
     )
     user_notes: list[str] = Field(
         default_factory=list,
