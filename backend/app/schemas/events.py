@@ -54,14 +54,6 @@ class EmailReplacedEvent(BaseModel):
     email: Email
 
 
-class QuestionEvent(BaseModel):
-    """The run is paused until the user answers through POST /answer."""
-
-    type: Literal["question"] = "question"
-    text: str
-    options: list[str] = Field(default_factory=list, description="Suggested answers, if any.")
-
-
 class DoneEvent(BaseModel):
     """The run finished."""
 
@@ -84,7 +76,6 @@ StreamEvent = Annotated[
     | SectionUpdatedEvent
     | SectionRemovedEvent
     | EmailReplacedEvent
-    | QuestionEvent
     | DoneEvent
     | ErrorEvent,
     Field(discriminator="type"),
