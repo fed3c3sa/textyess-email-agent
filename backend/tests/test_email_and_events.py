@@ -8,7 +8,7 @@ hero = Section(id="hero", kind="hero", reasoning="Big promise first.", content="
 
 
 def test_reasoning_comes_before_content():
-    """The model writes fields in order, so the reason must be streamed first."""
+    """The model writes fields in order, so it must decide why before writing the HTML."""
     fields = list(Section.model_fields)
     assert fields.index("reasoning") < fields.index("content")
 
