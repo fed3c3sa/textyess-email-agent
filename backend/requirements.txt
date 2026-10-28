@@ -1,6 +1,9 @@
+deepagents==0.7.32
 firecrawl-py==4.54.0
 httpx==0.28.1
 langchain==1.4.7
-pydantic==2.14.1
+langchain-openrouter==0.2.9
+pydantic==2.12.5
+pydantic-settings==2.16.2
 pymupdf==2.0
 pytest==9.2.0
