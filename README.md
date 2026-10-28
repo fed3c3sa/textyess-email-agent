@@ -27,8 +27,8 @@ flowchart TB
     ASSETS[/"Assets dir"/]
     CONF>"conflicts[]<br/>transient, never stored<br/>design system is saved with the PDF values<br/>(documents win over the website)<br/>user can override on the Setup screen or in the chat"]
 
-    STORE[("SQLite<br/>chat sessions, current email, email versions<br/>LangGraph SqliteSaver")]
-    FILES[("Files on disk<br/>brands/&lt;id&gt;/design_system.json<br/>brands/&lt;id&gt;/assets/<br/>brands/&lt;id&gt;/raw/ (raw HTML + CSS)")]
+    STORE[("SQLite<br/>LangGraph SqliteSaver checkpoints<br/>chat, current email, undo from history")]
+    FILES[("Files on disk<br/>brands/&lt;id&gt;/design_system.json<br/>brands/&lt;id&gt;/assets/<br/>brands/&lt;id&gt;/raw/ (raw HTML + CSS)<br/>brands/&lt;id&gt;/uploads/ (user files)")]
 
     SP1[" "]
     SP2[" "]
@@ -83,7 +83,7 @@ flowchart TB
 | API | FastAPI |
 | Streaming transport | SSE over POST (`fastapi.sse.EventSourceResponse`) |
 | Orchestration and state | LangChain + LangGraph, `AsyncSqliteSaver` checkpointer |
-| Models | OpenRouter through LangChain's OpenAI-compatible client; start with `z-ai/glm-5.3-flash` for all steps |
+| Models | OpenRouter through `langchain-openrouter` (`ChatOpenRouter`, reports cost per call); start with `z-ai/glm-5.3-flash` for all steps |
 | Data models | Pydantic v2 |
 | Scraper browsing | Playwright (async) |
 | PDF | PyMuPDF |
@@ -95,10 +95,14 @@ flowchart TB
 
 | Choice | Why |
 |---|---|
-| Design system JSON is the single source of truth; the email step reads all of it | No skill generation, no drift between a view and its source |
-| Chat learning is written to `user_notes[]` only after the user confirms | One-off requests don't become brand rules; a re-scrape never overwrites notes |
-| The email is a list of sections `{id, kind, html, reasoning}` edited with tools (`add_section`, `update_section`, `remove_section`) | Parts stream in one by one, follow-up edits patch by id, reasoning is shown per part |
-| Conflicts between website and PDF use LangGraph `interrupt()` | The graph pauses, the user answers in chat, the run resumes with the chosen value |
-| The design system is stored in its own file, not in checkpoints | Checkpoints only hold the chat and the current email |
-| SSE events are a typed Pydantic union (`status`, `reasoning`, `section_added`, `section_updated`, `question`, `done`, `error`) | The frontend develops against a fixed contract |
+| Design system JSON is the single source of truth; the orchestrator reads all of it | No skill generation, no drift between a view and its source |
+| Documents win over the website; the design system is saved immediately and the conflicts are shown to the user | A brand guideline is deliberate, a website carries old styles; the user can override any value |
+| Chat learning is written to `user_notes[]` only after the user says yes in the chat | One-off requests don't become brand rules; a re-scrape never overwrites notes |
+| The email is a list of sections `{id, kind, reasoning, content}`, subject and preheader included, edited with tools (`add_section`, `update_section`, `remove_section`) | Parts stream in one by one, follow-up edits patch by id, every part carries its reasoning |
+| `reasoning` is written before `content` | The model decides why before it writes the HTML |
+| Email HTML is responsive: fluid tables and images, a `stack` class for columns on phones | Most marketing email is read on a phone |
+| Undo reads the previous email from the LangGraph checkpoint history | No separate version storage |
+| Local images (from PDFs and uploads) are served by the API and turned into full URLs | An email needs absolute image URLs; real sending needs hosting |
+| The design system is stored in its own file, not in checkpoints | It belongs to the brand and is shared by every chat session |
+| SSE events are a typed Pydantic union (`status`, `message`, `section_added`, `section_updated`, `section_removed`, `email_replaced`, `done`, `error`) | The frontend develops against a fixed contract |
 | Token usage and OpenRouter cost are recorded per run | The README must report cost and time |
