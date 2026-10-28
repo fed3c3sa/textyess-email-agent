@@ -111,7 +111,10 @@ class DesignSystem(BaseModel):
 class Conflict(BaseModel):
     """Website and document disagree on one field. The document value is used."""
 
-    field: str = Field(description="Dotted path of the field, e.g. 'colors.primary'.")
+    field: str = Field(
+        description="Dotted path of the field through the objects, e.g. 'css.buttons' or 'identity.name'. "
+        "A list field is named whole, e.g. 'colors'."
+    )
     website_value: str = Field(description="Value found on the website.")
     document_value: str = Field(description="Value found in the uploaded document.")
 
