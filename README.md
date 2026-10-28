@@ -14,8 +14,8 @@ flowchart TB
     ORCH{{"<b>Orchestrator agent</b> (LLM)<br/>reads the whole design system<br/>asks the user when information is missing<br/>the user can do everything from chat"}}
 
     FSMW["Agent filesystem<br/>deepagents FilesystemMiddleware"]
-    WEB["Web browsing<br/>HTML + CSS + assets"]
-    PDF["PDF tools<br/>assets"]
+    WEB["scrape_website (Firecrawl)<br/>branding, text, HTML, screenshot, images"]
+    PDF["PDF prep (PyMuPDF)<br/>pages as images for the model<br/>logos and photos into assets"]
 
     LEARN["learn_brand<br/>(url, docs)"]
     SECT["add / update / remove section<br/>email = list of sections + reasoning<br/>(subject, preheader, body parts)<br/>streamed to the chat (SSE)<br/>full HTML built by render_email()"]
@@ -85,7 +85,7 @@ flowchart TB
 | Orchestration and state | LangChain + LangGraph, `AsyncSqliteSaver` checkpointer |
 | Models | OpenRouter through `langchain-openrouter` (`ChatOpenRouter`, reports cost per call); start with `z-ai/glm-5.3-flash` for all steps |
 | Data models | Pydantic v2 |
-| Scraper browsing | Playwright (async) |
+| Website scraping | Firecrawl `scrape` with the `branding`, `markdown`, `rawHtml`, `images` and `screenshot` formats (1 credit per page, no local browser) |
 | PDF | PyMuPDF |
 | Agent filesystem | `deepagents` `FilesystemMiddleware`, `FilesystemBackend(root_dir=brands/<id>, virtual_mode=True)` |
 | Email HTML | `css-inline` |
