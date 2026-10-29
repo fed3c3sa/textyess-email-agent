@@ -20,11 +20,11 @@ Everything is already gathered for you in the user message: what the website gav
 - Fill every field you can. When a value is written in a source, copy it. When it is not written, work it out from what you see: a color from a swatch or a logo, a button style from an example, the tone from the texts. Convert RGB and CMYK values to hex.
 - Leave a field empty only when no source shows anything about it.
 - identity: the brand name, the language it writes in as a code (en, it, fr...), and one or two sentences on what it sells.
-- colors: each color with a role (primary, background, text, cta, link, accent) and its hex code.
+- colors: every color the brand uses, each with a role (primary, background, text, cta, link, accent, border) and its hex code. Include the neutrals too: the white, black and grays of texts, backgrounds and borders. The email agent may use only the colors in this list, so a missing color forces it to pick a wrong one.
 - fonts: the family used for headings and the family used for body text.
 - voice: the tone in a few adjectives, habits to follow and to avoid, and sample phrases quoted word for word from the sources.
 - guidelines: layout, spacing and imagery rules in a few sentences.
-- html_examples: the brand's header, hero, call to action and footer as short HTML with inline CSS: colors, fonts, sizes, padding, radius. Copy them from the website or a past email, or build them from what a guideline shows. They are where the brand's styles live. The design system goes into every email request, so keep them short.
+- html_examples: the brand's header, hero, call to action and footer as short HTML with inline CSS: colors, fonts, sizes, padding, radius. Copy them from the website or a past email, or build them from what a guideline shows. They are where the brand's styles live. Use only hex codes that are in colors: if a snippet needs a color, add it to colors first. The design system goes into every email request, so keep them short.
 - assets: the useful images, logo first, then hero and product images. Describe each one and when to use it. The pointer is the image's original URL when it comes from the website (see the image list in what the website gave), or its path, such as /assets/guide-1.png, otherwise.
 - email_constraints: rules the sources give for communications, such as a legal footer or an unsubscribe line. One plain sentence each.
 - user_notes: leave empty. Only the user writes them.
