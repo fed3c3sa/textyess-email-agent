@@ -34,10 +34,11 @@ class SectionAddedEvent(BaseModel):
 
 
 class SectionUpdatedEvent(BaseModel):
-    """An existing section was changed. It keeps its id."""
+    """An existing section was changed, and maybe moved. It keeps its id."""
 
     type: Literal["section_updated"] = "section_updated"
     section: Section
+    index: int = Field(description="Position of the section in the email.")
 
 
 class SectionRemovedEvent(BaseModel):
