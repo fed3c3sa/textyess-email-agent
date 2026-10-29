@@ -16,10 +16,10 @@ import httpx
 import pymupdf
 from firecrawl import AsyncFirecrawl
 
+from app.config import MAX_IMAGES_TO_MODEL, MAX_PAGE_CHARS, MAX_PDF_PAGES, SUMMARY_TEXT_CHARS
 from app.schemas.pdf import PdfContent
 
 FIRECRAWL_FORMATS = ["branding", "markdown", "rawHtml", "images", "screenshot"]
-MAX_IMAGES = 15
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
 IMAGE_EXTENSIONS = {
     "image/png": ".png",
@@ -28,8 +28,6 @@ IMAGE_EXTENSIONS = {
     "image/webp": ".webp",
     "image/gif": ".gif",
 }
-TEXT_PREVIEW_CHARS = 1500
-MAX_PDF_PAGES = 10
 PDF_PAGE_DPI = 110  # enough to read small text on a page
 MIN_PDF_IMAGE_SIDE = 100
 
@@ -39,7 +37,8 @@ async def read_website(url: str, brand_dir: Path, firecrawl: AsyncFirecrawl, htt
 
     Saves /raw/branding.json (colors, fonts, typography, button styles, logo and tone,
     measured on the live page), /raw/page.md (the visible text), /raw/page.html, a
-    screenshot in /raw, and up to 15 images in /assets (logo first). The summary gives
+    screenshot in /raw, and up to MAX_IMAGES_TO_MODEL images in /assets (logo first).
+    The HTML and the text are cut at MAX_PAGE_CHARS characters. The summary gives
     the branding profile, the first lines of text, and each saved image with its
     original URL. If the site can't be read, the summary says so instead of raising.
     """
@@ -51,8 +50,8 @@ async def read_website(url: str, brand_dir: Path, firecrawl: AsyncFirecrawl, htt
 
     branding = without_inline_images(page.branding.model_dump(exclude_none=True)) if page.branding else {}
     (raw_dir / "branding.json").write_text(json.dumps(branding, indent=2))
-    (raw_dir / "page.md").write_text(page.markdown or "")
-    (raw_dir / "page.html").write_text(page.raw_html or "")
+    (raw_dir / "page.md").write_text((page.markdown or "")[:MAX_PAGE_CHARS])
+    (raw_dir / "page.html").write_text((page.raw_html or "")[:MAX_PAGE_CHARS])
     saved = ["/raw/branding.json", "/raw/page.md", "/raw/page.html"]
     # Firecrawl hosts the screenshot for a limited time, so keep a copy.
     screenshot = await fetch_image(page.screenshot, http) if page.screenshot else None
@@ -70,7 +69,7 @@ async def read_website(url: str, brand_dir: Path, firecrawl: AsyncFirecrawl, htt
         "Branding profile:",
         json.dumps(branding, indent=2) if branding else "(none found)",
         "First lines of text:",
-        (page.markdown or "(no text found)")[:TEXT_PREVIEW_CHARS],
+        (page.markdown or "(no text found)")[:SUMMARY_TEXT_CHARS],
         "Images saved (file -> original URL):",
         *([f"- /assets/{name} -> {source}" for name, source in images] or ["(none)"]),
     ]
@@ -116,10 +115,10 @@ async def fetch_image(url: str, http: httpx.AsyncClient) -> tuple[bytes, str] | 
 
 
 async def download_images(urls: list[str], assets_dir: Path, http: httpx.AsyncClient) -> list[tuple[str, str]]:
-    """Download up to MAX_IMAGES images into `assets_dir`. Returns (file name, original URL) pairs."""
+    """Download up to MAX_IMAGES_TO_MODEL images into `assets_dir`. Returns (file name, original URL) pairs."""
     saved = []
     for url in urls:
-        if len(saved) == MAX_IMAGES:
+        if len(saved) == MAX_IMAGES_TO_MODEL:
             break
         image = await fetch_image(url, http)
         if image is None:
