@@ -142,3 +142,5 @@ def test_render_puts_subject_and_preheader_in_their_place():
     assert ">Ends tonight</div>" in page
     assert page.index("<h1>-20%</h1>") < page.index("<p>Bye</p>")
     assert page.count("Sale &amp; more") == 1  # the subject is not repeated in the body
+    assert '<td align="center">' in page  # the sections sit in a centered column
+    assert page.index('max-width:600px') < page.index("<h1>-20%</h1>")
