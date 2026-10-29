@@ -8,10 +8,18 @@ stream writer that collects the events.
 from types import SimpleNamespace
 
 import pytest
+from langgraph.graph import END, START, StateGraph
 
 from app.config import Settings
 from app.orchestrator.render import render_email
-from app.orchestrator.tools import OrchestratorContext, build_orchestrator_tools, drop_section, put_section
+from app.orchestrator.tools import (
+    OrchestratorContext,
+    OrchestratorState,
+    apply_email_edit,
+    build_orchestrator_tools,
+    drop_section,
+    put_section,
+)
 from app.schemas.design_system import DesignSystem
 from app.schemas.email import Email, Section
 
@@ -45,9 +53,23 @@ def test_a_position_moves_the_section():
     assert index == 1
 
 
-def test_drop_section_explains_an_unknown_id():
-    with pytest.raises(ValueError, match="Sections: subject, hero, footer"):
-        drop_section(EMAIL, "cta")
+def test_drop_section_ignores_an_unknown_id():
+    assert ids(drop_section(EMAIL, "cta")) == ["subject", "hero", "footer"]
+
+
+def test_edits_from_tools_called_at_the_same_time_are_all_kept():
+    """The bug of the first real run: the model called write_section several times at once."""
+    graph = StateGraph(OrchestratorState)
+    graph.add_node("hero", lambda state: {"email": {"write": section("hero").model_dump(), "position": None}})
+    graph.add_node("footer", lambda state: {"email": {"write": section("footer").model_dump(), "position": None}})
+    graph.add_edge(START, "hero")
+    graph.add_edge(START, "footer")
+    graph.add_edge("hero", END)
+    graph.add_edge("footer", END)
+
+    state = graph.compile().invoke({"messages": []})
+
+    assert sorted(ids(state["email"])) == ["footer", "hero"]
 
 
 @pytest.fixture
@@ -70,7 +92,7 @@ def test_write_section_updates_the_state_and_sends_an_event(tools, brand_id):
 
     command = tools["write_section"].func(section_id="hero", reasoning="r", content="<h1>New</h1>", runtime=runtime)
 
-    assert command.update["email"].sections[1].content == "<h1>New</h1>"
+    assert apply_email_edit(EMAIL, command.update["email"]).sections[1].content == "<h1>New</h1>"
     assert events[0]["type"] == "section_updated"
     assert events[0]["index"] == 1
 
@@ -80,8 +102,13 @@ def test_write_section_starts_an_email_from_nothing(tools, brand_id):
     command = tools["write_section"].func(
         section_id="subject", reasoning="r", content="Black Friday", runtime=fake_runtime(brand_id, events=events)
     )
-    assert ids(command.update["email"]) == ["subject"]
+    assert ids(apply_email_edit(Email(), command.update["email"])) == ["subject"]
     assert events[0]["type"] == "section_added"
+
+
+def test_remove_section_explains_an_unknown_id(tools, brand_id):
+    answer = tools["remove_section"].func(section_id="cta", runtime=fake_runtime(brand_id, EMAIL))
+    assert answer == "There is no section 'cta'. Sections: subject, hero, footer."
 
 
 def test_update_design_system_changes_the_brand_but_not_the_notes(tools, store, brand_id):
