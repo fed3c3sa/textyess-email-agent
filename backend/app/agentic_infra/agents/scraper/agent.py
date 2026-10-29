@@ -10,6 +10,7 @@ The steps run in order:
 5. Save the design system (BrandStore keeps the user's notes) and return the result.
 """
 
+import logging
 import base64
 import io
 from collections.abc import Callable
@@ -33,6 +34,8 @@ from app.schemas.design_system import DesignSystem, ScrapeResult
 from app.agentic_infra.agents.scraper.sources import prepare_pdf, read_website
 from app.storage.brands import BrandStore
 
+logger = logging.getLogger(__name__)
+
 READ_ONLY_FILE_TOOLS = ["ls", "read_file", "glob", "grep"]
 IMAGE_FOLDERS = ("raw", "uploads", "assets")  # the order the images appear in the message
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp", ".gif"}  # SVG is left out: models cannot see it
@@ -53,6 +56,7 @@ async def scrape_brand(
     Raises if the model does not return a valid design system.
     """
     brand_dir = store.brand_dir(brand_id)
+    logger.info("Learning brand %s from %s", brand_id, url or "the uploaded files only")
 
     website_summary = "No website was given."
     if url:
@@ -67,6 +71,7 @@ async def scrape_brand(
 
     report("Building the design system...")
     message = build_first_message(brand_dir, url, website_summary, store.load(brand_id))
+    logger.info("Scraper starts with %d images in its first message", sum(b["type"] == "image" for b in message.content))
     model = ChatOpenRouter(
         model=settings.model,
         openrouter_api_key=settings.openrouter_api_key,
@@ -92,6 +97,7 @@ async def scrape_brand(
     result: ScrapeResult | None = output.get("structured_response")
     if result is None:
         # The agent used all its model calls while searching: ask for the answer with what it found.
+        logger.warning("Scraper used its %d model calls without answering: asking for the answer", SCRAPER_MAX_MODEL_CALLS)
         report("Writing the design system...")
         finish = HumanMessage(render_text("scraper_finish"))
         messages = [system_prompt, *output["messages"], finish]
@@ -101,6 +107,7 @@ async def scrape_brand(
     if url:
         result.design_system.identity.source_url = url
     store.save(brand_id, result.design_system)
+    logger.info("Brand %s learned, %d conflicts between website and documents", brand_id, len(result.conflicts))
     return result
 
 

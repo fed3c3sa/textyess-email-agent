@@ -1,5 +1,6 @@
 """Settings, read from the environment or from the `.env` file at the root of the repository."""
 
+import logging
 from pathlib import Path
 from typing import Literal
 
@@ -32,6 +33,17 @@ class Settings(BaseSettings):
     data_dir: Path = Field(
         default=REPO_ROOT / "backend" / "data", description="Folder for brands and the chat database."
     )
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = Field(
+        default="INFO", description="Least important log lines that are still printed."
+    )
     public_url: str = Field(
         default="http://localhost:8000", description="Address of the API, used to link the images saved on disk."
     )
+
+
+def configure_logging(level: str) -> None:
+    """Set up logging once, at the program's entry point: one line per event, with time, level and module."""
+    logging.basicConfig(level=level, format="%(asctime)s %(levelname)-7s %(name)s: %(message)s", datefmt="%H:%M:%S")
+    for noisy in ("httpx", "httpcore"):  # one line per HTTP request otherwise
+        logging.getLogger(noisy).setLevel(logging.WARNING)
+

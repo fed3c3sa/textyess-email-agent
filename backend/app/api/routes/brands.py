@@ -1,5 +1,6 @@
 """Routes of the Setup screen: create a brand, upload files, learn it, read and correct its design system."""
 
+import logging
 import asyncio
 import time
 from collections.abc import AsyncIterable
@@ -20,6 +21,8 @@ from app.schemas.events import BrandReadyEvent, DoneEvent, ErrorEvent, StatusEve
 from app.agentic_infra.agents.scraper.agent import scrape_brand
 from app.storage.brands import BrandStore
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/brands", tags=["brands"])
 
 
@@ -37,6 +40,7 @@ async def upload_files(
         name = Path(file.filename or "upload").name
         (store.brand_dir(brand_id) / "uploads" / name).write_bytes(await file.read())
         names.append(name)
+    logger.info("Brand %s: %d files uploaded: %s", brand_id, len(names), ", ".join(names))
     return {"files": names}
 
 
@@ -60,6 +64,7 @@ async def learn(
             await events.put(BrandReadyEvent(brand_id=brand_id, **result.model_dump()))
             await events.put(DoneEvent(cost_usd=round(cost.usd, 6), seconds=round(time.time() - start, 1)))
         except Exception as error:
+            logger.exception("Learning brand %s failed", brand_id)
             await events.put(ErrorEvent(message=str(error)))
         await events.put(None)  # the end of the stream
 

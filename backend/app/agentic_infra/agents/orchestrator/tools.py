@@ -8,6 +8,7 @@ preview changes while the agent works. The session's brand comes from the run's
 context.
 """
 
+import logging
 from dataclasses import dataclass
 from typing import Annotated, Any, NotRequired
 
@@ -22,6 +23,8 @@ from app.schemas.email import Email, Section
 from app.schemas.events import SectionAddedEvent, SectionRemovedEvent, SectionUpdatedEvent, StatusEvent
 from app.agentic_infra.agents.scraper.agent import scrape_brand
 from app.storage.brands import BrandStore
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -99,6 +102,7 @@ def build_orchestrator_tools(store: BrandStore, settings: Settings) -> list[Base
         section = Section(id=section_id, reasoning=reasoning, content=content)
         _, index = put_section(email, section, position)
 
+        logger.info("Section %r %s at position %d", section_id, "rewritten" if exists else "added", index)
         event = SectionUpdatedEvent if exists else SectionAddedEvent
         runtime.stream_writer(event(section=section, index=index).model_dump())
         text = f"Wrote '{section_id}' at position {index}."
@@ -115,8 +119,10 @@ def build_orchestrator_tools(store: BrandStore, settings: Settings) -> list[Base
         email = runtime.state.get("email") or Email()
         if not any(s.id == section_id for s in email.sections):
             ids = ", ".join(s.id for s in email.sections) or "none"
+            logger.warning("The agent tried to remove the unknown section %r", section_id)
             return f"There is no section '{section_id}'. Sections: {ids}."
 
+        logger.info("Section %r removed", section_id)
         runtime.stream_writer(SectionRemovedEvent(section_id=section_id).model_dump())
         edit = {"remove": section_id}
         return Command(update={"email": edit, "messages": [reply(runtime, f"Removed '{section_id}'.")]})
@@ -140,10 +146,12 @@ def build_orchestrator_tools(store: BrandStore, settings: Settings) -> list[Base
             value: The new value: a text, or the whole new list for a list field such as 'colors'.
         """
         if field.split(".")[0] == "user_notes":
+            logger.warning("The agent tried to change the user notes directly")
             return "User notes cannot be changed here. Use save_note to add one."
         try:
             store.update_field(runtime.context.brand_id, field, value)
         except (ValueError, ValidationError) as error:
+            logger.warning("The agent could not change %s: %s", field, error)
             return f"Could not change {field}: {error}"
         return f"Changed {field}."
 
@@ -163,6 +171,7 @@ def build_orchestrator_tools(store: BrandStore, settings: Settings) -> list[Base
         try:
             result = await scrape_brand(store, runtime.context.brand_id, url, settings, report)
         except Exception as error:
+            logger.exception("learn_brand failed for brand %s", runtime.context.brand_id)
             return f"Could not learn the brand: {error}"
 
         lines = ["Learned the brand. The design system is updated."]

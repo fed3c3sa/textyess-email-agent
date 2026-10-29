@@ -9,6 +9,7 @@ Paths in the summary start with `/`, because the scraper's file tools see the br
 folder as their root.
 """
 
+import logging
 import json
 from pathlib import Path
 
@@ -18,6 +19,8 @@ from firecrawl import AsyncFirecrawl
 
 from app.config import MAX_IMAGES_TO_MODEL, MAX_PAGE_CHARS, MAX_PDF_PAGES, SUMMARY_TEXT_CHARS
 from app.schemas.pdf import PdfContent
+
+logger = logging.getLogger(__name__)
 
 FIRECRAWL_FORMATS = ["branding", "markdown", "rawHtml", "images", "screenshot"]
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
@@ -43,9 +46,11 @@ async def read_website(url: str, brand_dir: Path, firecrawl: AsyncFirecrawl, htt
     original URL. If the site can't be read, the summary says so instead of raising.
     """
     raw_dir = brand_dir / "raw"
+    logger.info("Reading %s with Firecrawl", url)
     try:
         page = await firecrawl.scrape(url, formats=FIRECRAWL_FORMATS, only_main_content=False)
     except Exception as error:
+        logger.warning("Could not read %s: %s", url, error)
         return f"Could not read {url}: {error}"
 
     branding = without_inline_images(page.branding.model_dump(exclude_none=True)) if page.branding else {}
@@ -61,6 +66,11 @@ async def read_website(url: str, brand_dir: Path, firecrawl: AsyncFirecrawl, htt
         saved.append(f"/raw/screenshot{extension}")
 
     images = await download_images(website_image_urls(page), brand_dir / "assets", http)
+    logger.info(
+        "Read %s: branding profile %s, %d characters of text, screenshot %s, %d images saved",
+        url, "found" if branding else "missing", len(page.markdown or ""), "saved" if screenshot else "missing",
+        len(images),
+    )
 
     title = page.metadata.title if page.metadata else None
     lines = [
@@ -122,6 +132,7 @@ async def download_images(urls: list[str], assets_dir: Path, http: httpx.AsyncCl
             break
         image = await fetch_image(url, http)
         if image is None:
+            logger.debug("Image skipped (not a usable image): %s", url)
             continue
         content, extension = image
         name = f"image-{len(saved) + 1:02d}{extension}"
@@ -160,4 +171,8 @@ def prepare_pdf(pdf_path: Path, raw_dir: Path, assets_dir: Path) -> PdfContent:
                 image_files.append(name)
         page_count = pdf.page_count
 
+    logger.info(
+        "PDF %s: %d pages, %d turned into images, %d embedded images saved",
+        pdf_path.name, page_count, len(page_images), len(image_files),
+    )
     return PdfContent(page_count=page_count, page_images=page_images, image_files=image_files)

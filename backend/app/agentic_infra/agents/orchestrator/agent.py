@@ -7,6 +7,7 @@ and yields the events the UI needs: chat text, sections and progress while the a
 works, then the final email, the cost and the time of the turn.
 """
 
+import logging
 import time
 from collections.abc import AsyncGenerator, AsyncIterator
 from contextlib import asynccontextmanager
@@ -27,6 +28,8 @@ from app.schemas.design_system import DesignSystem
 from app.schemas.email import Email
 from app.schemas.events import DoneEvent, EmailReplacedEvent, ErrorEvent, MessageEvent
 from app.storage.brands import BrandStore
+
+logger = logging.getLogger(__name__)
 
 AGENT_NAME = "orchestrator"
 STATE_TYPES = [("app.schemas.email", "Email"), ("app.schemas.email", "Section")]  # our types inside the state
@@ -102,6 +105,10 @@ async def stream_turn(
         text = f"<selected_section>{selected_section}</selected_section>\n{text}"
     config = {"configurable": {"thread_id": session_id}}
     start, cost = time.time(), 0.0
+    logger.info(
+        "Turn started: session %s, brand %s, message of %d characters%s",
+        session_id, brand_id, len(text), f", about section {selected_section!r}" if selected_section else "",
+    )
     try:
         async for chunk in agent.astream(
             {"messages": [HumanMessage(text)]},
@@ -123,6 +130,8 @@ async def stream_turn(
         state = await agent.aget_state(config)
         yield EmailReplacedEvent(email=state.values.get("email") or Email()).model_dump()
     except Exception as error:
+        logger.exception("Turn failed: session %s", session_id)
         yield ErrorEvent(message=str(error)).model_dump()
         return
+    logger.info("Turn done: session %s in %.1f s for $%.4f", session_id, time.time() - start, cost)
     yield DoneEvent(cost_usd=round(cost, 6), seconds=round(time.time() - start, 1)).model_dump()

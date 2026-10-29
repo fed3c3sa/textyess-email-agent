@@ -13,7 +13,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.config import Settings
+from app.config import Settings, configure_logging
 from app.agentic_infra.agents.orchestrator.agent import build_orchestrator, open_memory
 from app.api.routes import brands, sessions
 from app.storage.brands import BrandStore
@@ -22,6 +22,7 @@ from app.storage.brands import BrandStore
 def create_app(settings: Settings | None = None) -> FastAPI:
     """The API, with its own settings. Tests pass settings with a temporary data folder."""
     settings = settings or Settings()
+    configure_logging(settings.log_level)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):

@@ -13,13 +13,14 @@ import shutil
 import time
 
 from app.agentic_infra.cost import CostCounter
-from app.config import Settings
+from app.config import Settings, configure_logging
 from app.agentic_infra.agents.scraper.agent import scrape_brand
 from app.storage.brands import BrandStore
 
 
 async def main(url: str | None, files: list[str]) -> None:
     settings = Settings()
+    configure_logging(settings.log_level)
     store = BrandStore(settings.data_dir)
     brand_id = store.create_brand()
     for file in files:

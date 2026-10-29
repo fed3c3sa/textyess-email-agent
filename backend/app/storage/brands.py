@@ -11,12 +11,15 @@ This is the only module that touches those files. A re-scrape replaces the desig
 system but never `user_notes`.
 """
 
+import logging
 import re
 import secrets
 from pathlib import Path
 from typing import Any
 
 from app.schemas.design_system import DesignSystem
+
+logger = logging.getLogger(__name__)
 
 SUBFOLDERS = ("assets", "raw", "uploads")
 BRAND_ID_PATTERN = re.compile(r"[0-9a-f]{8}")
@@ -34,6 +37,7 @@ class BrandStore:
         brand_id = secrets.token_hex(4)
         for name in SUBFOLDERS:
             (self._brands / brand_id / name).mkdir(parents=True)
+        logger.info("Brand %s created", brand_id)
         return brand_id
 
     def brand_dir(self, brand_id: str) -> Path:
@@ -58,12 +62,18 @@ class BrandStore:
         existing = self.load(brand_id)
         notes = existing.user_notes if existing else []
         self._write(brand_id, design_system.model_copy(update={"user_notes": notes}))
+        logger.info(
+            "Brand %s design system saved: %d colors, %d fonts, %d images, %d html examples, %d user notes kept",
+            brand_id, len(design_system.colors), len(design_system.fonts), len(design_system.assets),
+            len(design_system.html_examples), len(notes),
+        )
 
     def add_note(self, brand_id: str, note: str) -> None:
         """Append one confirmed preference to user_notes."""
         design_system = self.load(brand_id) or DesignSystem()
         design_system.user_notes.append(note)
         self._write(brand_id, design_system)
+        logger.info("Brand %s note saved: %r", brand_id, note)
 
     def update_field(self, brand_id: str, path: str, value: Any) -> DesignSystem:
         """Set one field and return the new design system.
@@ -85,6 +95,7 @@ class BrandStore:
 
         design_system = DesignSystem.model_validate(data)
         self._write(brand_id, design_system)
+        logger.info("Brand %s field %s changed", brand_id, path)
         return design_system
 
     def _write(self, brand_id: str, design_system: DesignSystem) -> None:

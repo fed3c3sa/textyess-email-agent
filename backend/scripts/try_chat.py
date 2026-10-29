@@ -12,7 +12,7 @@ import argparse
 import asyncio
 from uuid import uuid4
 
-from app.config import Settings
+from app.config import Settings, configure_logging
 from app.agentic_infra.agents.orchestrator.agent import build_orchestrator, open_memory, stream_turn
 from app.render import render_email
 from app.schemas.email import Email
@@ -42,6 +42,7 @@ def show(event: dict) -> None:
 
 async def main(brand_id: str | None) -> None:
     settings = Settings()
+    configure_logging(settings.log_level)
     store = BrandStore(settings.data_dir)
     brand_id = brand_id or store.create_brand()
     session_id = uuid4().hex
