@@ -1,15 +1,17 @@
-"""Settings, read from the environment or from a `.env` file in `backend/`."""
+"""Settings, read from the environment or from the `.env` file at the root of the repository."""
 
 from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
 
 class Settings(BaseSettings):
     """Keys and knobs of the backend."""
 
-    model_config = SettingsConfigDict(env_file=".env")
+    model_config = SettingsConfigDict(env_file=REPO_ROOT / ".env")
 
     openrouter_api_key: str = Field(description="Key for OpenRouter, which serves the language model.")
     firecrawl_api_key: str = Field(description="Key for Firecrawl, which reads websites.")
