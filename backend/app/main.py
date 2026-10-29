@@ -4,7 +4,7 @@
 
 `create_app` builds the shared objects once (settings, brand store, orchestrator
 agent with its memory), keeps them in `app.state`, and includes the API routers:
-`api/brands.py` for the Setup screen and `api/sessions.py` for the Studio.
+`api/routes/brands.py` for the Setup screen and `api/routes/sessions.py` for the Studio.
 The routes hold no logic of their own: they call the functions that already exist.
 """
 
@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import Settings
 from app.agentic_infra.agents.orchestrator.agent import build_orchestrator, open_memory
-from app.api import brands, sessions
+from app.api.routes import brands, sessions
 from app.storage.brands import BrandStore
 
 
