@@ -39,7 +39,7 @@ class Font(BaseModel):
     """The font family used for one role."""
 
     role: Literal["heading", "body"] = Field(description="Where the font is used.")
-    family: str = Field(description="Font family name, e.g. 'Helvetica Neue'.")
+    family: str = Field(description="Only the font family name, e.g. 'Inter' or 'Helvetica Neue'. No fallbacks or notes.")
 
 
 class Voice(BaseModel):
