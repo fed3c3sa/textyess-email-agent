@@ -5,9 +5,10 @@ The steps run in order:
 2. Save the pages of every uploaded PDF as images, and the images inside them as assets.
 3. Build one user message with all the text and every image. The images go there,
    and not through a tool, because the model can only see images in a user message.
-4. Run the agent. It can search the saved text files, and returns a ScrapeResult.
-   If it uses all its model calls without answering, one last call asks for the answer.
-5. Save the design system (BrandStore keeps the user's notes) and return the result.
+4. Run the agent. It searches the saved text files, within a limit of model calls.
+5. One last call asks for the ScrapeResult, as a JSON schema. No tool is forced, so it
+   works with every model, Claude included (it refuses a forced tool choice).
+6. Save the design system (BrandStore keeps the user's notes) and return the result.
 """
 
 import logging
@@ -22,13 +23,12 @@ from deepagents.middleware.filesystem import FilesystemMiddleware
 from firecrawl import AsyncFirecrawl
 from langchain.agents import create_agent
 from langchain.agents.middleware import ModelCallLimitMiddleware
-from langchain.agents.structured_output import ToolStrategy
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.messages import HumanMessage
-from langchain_openrouter import ChatOpenRouter
 from PIL import Image
 
 from app.config import MAX_IMAGE_WIDTH, MAX_IMAGES_TO_MODEL, SCRAPER_MAX_MODEL_CALLS, Settings
+from app.agentic_infra.model import build_model
 from app.agentic_infra.prompts import render_system_prompt, render_text
 from app.schemas.design_system import DesignSystem, ScrapeResult
 from app.agentic_infra.agents.scraper.sources import prepare_pdf, read_website
@@ -72,11 +72,7 @@ async def scrape_brand(
     report("Building the design system...")
     message = build_first_message(brand_dir, url, website_summary, store.load(brand_id))
     logger.info("Scraper starts with %d images in its first message", sum(b["type"] == "image" for b in message.content))
-    model = ChatOpenRouter(
-        model=settings.model,
-        openrouter_api_key=settings.openrouter_api_key,
-        reasoning={"effort": settings.reasoning_effort},
-    )
+    model = build_model(settings)
     system_prompt = render_system_prompt("scraper_system")
     agent = create_agent(
         model=model,
@@ -88,20 +84,17 @@ async def scrape_brand(
             ),
             ModelCallLimitMiddleware(run_limit=SCRAPER_MAX_MODEL_CALLS),  # stops the search loop
         ],
-        response_format=ToolStrategy(ScrapeResult),
         name="scraper",
     )
     config = {"callbacks": callbacks} if callbacks else None  # e.g. a CostCounter
     output = await agent.ainvoke({"messages": [message]}, config=config)
 
-    result: ScrapeResult | None = output.get("structured_response")
-    if result is None:
-        # The agent used all its model calls while searching: ask for the answer with what it found.
-        logger.warning("Scraper used its %d model calls without answering: asking for the answer", SCRAPER_MAX_MODEL_CALLS)
-        report("Writing the design system...")
-        finish = HumanMessage(render_text("scraper_finish"))
-        messages = [system_prompt, *output["messages"], finish]
-        result = await model.with_structured_output(ScrapeResult).ainvoke(messages, config=config)
+    logger.info("Scraper finished searching after %d messages", len(output["messages"]))
+
+    report("Writing the design system...")
+    finish = HumanMessage(render_text("scraper_finish"))
+    messages = [system_prompt, *output["messages"], finish]
+    result = await model.with_structured_output(ScrapeResult, method="json_schema").ainvoke(messages, config=config)
     if result is None:
         raise RuntimeError("The scraper ended without a design system.")
     if url:

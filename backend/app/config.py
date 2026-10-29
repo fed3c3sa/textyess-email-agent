@@ -25,7 +25,7 @@ class Settings(BaseSettings):
 
     openrouter_api_key: str = Field(description="Key for OpenRouter, which serves the language model.")
     firecrawl_api_key: str = Field(description="Key for Firecrawl, which reads websites.")
-    model: str = Field(default="z-ai/glm-5.3-flash", description="OpenRouter id of the model used by every agent.")
+    model: str = Field(default="anthropic/claude-sonnet-5.5", description="OpenRouter id of the model used by every agent.")
     reasoning_effort: Literal["xhigh", "high", "medium", "low", "minimal", "none"] = Field(
         default="low",
         description="How much the model thinks before answering. Less is faster",
@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     data_dir: Path = Field(
         default=REPO_ROOT / "backend" / "data", description="Folder for brands and the chat database."
     )
+    model_timeout_seconds: int = Field(
+        default=60, description="Longest wait for one model answer before it is cut off and retried."
+    )
+    model_max_retries: int = Field(default=2, description="How many times a failed or timed-out model call is retried.")
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = Field(
         default="INFO", description="Least important log lines that are still printed."
     )

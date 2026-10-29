@@ -1,1 +1,1 @@
-You have used all your searches. Stop searching now and return the design system with what you found so far, by calling the ScrapeResult tool.
+Stop searching now. Return the design system with everything you found, following the rules for each field.

@@ -81,23 +81,24 @@ def test_a_broken_image_is_skipped(tmp_path):
 
 
 class FakeAgent:
-    """Returns a fixed result (None: it ran out of model calls) and remembers the message it got."""
+    """Stands in for the searching agent: remembers the message it got and returns it."""
 
-    def __init__(self, result: ScrapeResult | None):
-        self.result, self.messages = result, []
+    def __init__(self):
+        self.messages = []
 
     async def ainvoke(self, state, config=None):
         self.messages.extend(state["messages"])
-        return {"structured_response": self.result, "messages": state["messages"]}
+        return {"messages": state["messages"]}
 
 
 class FakeModel:
-    """Stands in for ChatOpenRouter: its structured output returns a fixed result."""
+    """Stands in for the chat model: the final structured call returns a fixed result."""
 
     def __init__(self, result: ScrapeResult):
-        self.result = result
+        self.result, self.method = result, None
 
-    def with_structured_output(self, schema):
+    def with_structured_output(self, schema, method=None):
+        self.method = method
         return self
 
     async def ainvoke(self, messages, config=None):
@@ -111,29 +112,18 @@ def test_scrape_brand_prepares_the_pdf_runs_the_agent_and_saves(store, brand_id,
         design_system=DesignSystem(identity=Identity(name="Acme")),
         conflicts=[Conflict(field="colors", website_value="#D0021B", document_value="#E4002B")],
     )
-    fake = FakeAgent(result)
-    monkeypatch.setattr(scraper_agent, "create_agent", lambda **kwargs: fake)
+    agent, model = FakeAgent(), FakeModel(result)
+    monkeypatch.setattr(scraper_agent, "create_agent", lambda **kwargs: agent)
+    monkeypatch.setattr(scraper_agent, "build_model", lambda settings: model)
     settings = Settings(openrouter_api_key="test", firecrawl_api_key="test")
     reports = []
 
     returned = asyncio.run(scrape_brand(store, brand_id, None, settings, reports.append))
 
-    assert "/raw/guide-page-1.png:" in labels(fake.messages[0])  # the PDF page reached the model
+    assert "/raw/guide-page-1.png:" in labels(agent.messages[0])  # the PDF page reached the model
+    assert model.method == "json_schema"  # no forced tool, so every model accepts it
     assert returned.conflicts == result.conflicts
     saved = store.load(brand_id)
     assert saved.identity.name == "Acme"
     assert saved.user_notes == ["no emojis"]  # kept across the re-scrape
-    assert reports == ["Reading the documents...", "Building the design system..."]
-
-
-def test_scrape_brand_asks_for_the_answer_when_the_agent_runs_out_of_calls(store, brand_id, monkeypatch):
-    result = ScrapeResult(design_system=DesignSystem(identity=Identity(name="Acme")))
-    monkeypatch.setattr(scraper_agent, "create_agent", lambda **kwargs: FakeAgent(None))
-    monkeypatch.setattr(scraper_agent, "ChatOpenRouter", lambda **kwargs: FakeModel(result))
-    settings = Settings(openrouter_api_key="test", firecrawl_api_key="test")
-    reports = []
-
-    asyncio.run(scrape_brand(store, brand_id, None, settings, reports.append))
-
-    assert store.load(brand_id).identity.name == "Acme"
-    assert reports[-1] == "Writing the design system..."
+    assert reports == ["Reading the documents...", "Building the design system...", "Writing the design system..."]

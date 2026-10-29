@@ -17,12 +17,12 @@ import aiosqlite
 from langchain.agents import create_agent
 from langchain.agents.middleware import ModelRequest, dynamic_prompt
 from langchain_core.messages import AIMessageChunk, HumanMessage
-from langchain_openrouter import ChatOpenRouter
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 from app.config import Settings
 from app.agentic_infra.agents.orchestrator.tools import OrchestratorContext, OrchestratorState, build_orchestrator_tools
+from app.agentic_infra.model import build_model
 from app.agentic_infra.prompts import render_system_prompt
 from app.schemas.design_system import DesignSystem
 from app.schemas.email import Email
@@ -54,14 +54,7 @@ def build_orchestrator(store: BrandStore, settings: Settings, memory: AsyncSqlit
         return orchestrator_prompt(store, settings, brand_id, request.state.get("email") or Email())
 
     return create_agent(
-        model=ChatOpenRouter(
-            model=settings.model,
-            openrouter_api_key=settings.openrouter_api_key,
-            reasoning={"effort": settings.reasoning_effort},
-            # One section per call streams best. Not every model respects it; the email's
-            # reducer keeps parallel calls safe anyway.
-            model_kwargs={"parallel_tool_calls": False},
-        ),
+        model=build_model(settings),
         tools=build_orchestrator_tools(store, settings),
         middleware=[prompt],
         state_schema=OrchestratorState,
