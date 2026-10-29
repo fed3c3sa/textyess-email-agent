@@ -18,7 +18,7 @@ flowchart TB
     PDF["<b>2. PDFs</b> (PyMuPDF)<br/>pages as images for the model<br/>logos and photos into assets"]
 
     LEARN["learn_brand<br/>(url, docs)"]
-    SECT["add / update / remove section<br/>email = list of sections + reasoning<br/>(subject, preheader, body parts)<br/>streamed to the chat (SSE)<br/>full HTML built by render_email()"]
+    SECT["write_section / remove_section<br/>the model designs the email freely<br/>as named sections + reasoning<br/>streamed to the chat (SSE)<br/>render_email() adds only the envelope"]
     NOTE["save_note<br/>after the user confirms"]
     UPDATE["update_design_system<br/>(field, value)<br/>conflict answers and corrections"]
 
@@ -86,7 +86,7 @@ flowchart TB
 | Website scraping | Firecrawl `scrape` with the `branding`, `markdown`, `rawHtml`, `images` and `screenshot` formats (1 credit per page, no local browser) |
 | PDF | PyMuPDF |
 | Agent filesystem | `deepagents` `FilesystemMiddleware`, `FilesystemBackend(root_dir=brands/<id>, virtual_mode=True)` |
-| Email HTML | `css-inline` |
+| Email HTML | written by the model with inline CSS; `render_email()` adds only the document envelope |
 | Storage | SQLite + files on disk |
 
 ### Design choices
@@ -96,9 +96,9 @@ flowchart TB
 | Design system JSON is the single source of truth; the orchestrator reads all of it | No skill generation, no drift between a view and its source |
 | Documents win over the website; the design system is saved immediately and the conflicts are shown to the user | A brand guideline is deliberate, a website carries old styles; the user can override any value |
 | Chat learning is written to `user_notes[]` only after the user says yes in the chat | One-off requests don't become brand rules; a re-scrape never overwrites notes |
-| The email is a list of sections `{id, kind, reasoning, content}`, subject and preheader included, edited with tools (`add_section`, `update_section`, `remove_section`) | Parts stream in one by one, follow-up edits patch by id, every part carries its reasoning |
+| The model designs the email freely, as a list of sections `{id, reasoning, content}` it names itself, written with `write_section` (add or replace) and `remove_section`. Only `subject` and `preheader` are fixed ids | No template: the design system is a guideline. Parts stream in one by one, follow-up edits rewrite a part by id, every part carries its reasoning |
 | `reasoning` is written before `content` | The model decides why before it writes the HTML |
-| Email HTML is responsive: fluid tables and images, a `stack` class for columns on phones | Most marketing email is read on a phone |
+| Email HTML is responsive: fluid tables and images, columns that wrap on a narrow screen | Most marketing email is read on a phone |
 | Undo reads the previous email from the LangGraph checkpoint history | No separate version storage |
 | Website images are used through their original public URL; the downloaded copy is only for the scraper to look at | The reader's email app loads them from the brand's site, so they work in a real inbox |
 | Images from PDFs and uploads are preview-only: the API serves them from `localhost`, which a reader's email app cannot reach | Making them work for readers means hosting them publicly (S3, a CDN, or the email platform's image hosting), which is deployment and out of scope |
