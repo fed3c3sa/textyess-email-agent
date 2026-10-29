@@ -93,6 +93,7 @@ def test_read_website_saves_files_and_returns_a_short_summary(brand_dir):
     assert "#E4002B" in summary
     assert "/assets/image-01.png -> https://acme.com/logo.png" in summary
     assert "missing.png" not in summary  # the 404 was skipped
+    assert "data:image" not in summary  # the inline favicon was left out
     assert firecrawl.calls[0]["only_main_content"] is False  # keep header and footer
 
 
