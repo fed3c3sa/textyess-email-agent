@@ -1,13 +1,27 @@
 import pytest
 from langchain_core.messages import SystemMessage
 
-from app.prompts import load_prompt, render_system_prompt
+from app.prompts import load_prompt, render_system_prompt, render_text
 
 
 def test_each_prompt_declares_the_variables_we_fill():
     """If a prompt gains or loses a variable, the code that fills it must change too."""
     assert load_prompt("scraper_system").input_variables == []
+    assert sorted(load_prompt("scraper_user").input_variables) == [
+        "current_design_system",
+        "uploads",
+        "website",
+        "website_summary",
+    ]
     assert sorted(load_prompt("orchestrator_system").input_variables) == ["current_email", "design_system"]
+
+
+def test_render_text_fills_a_user_prompt():
+    text = render_text(
+        "scraper_user", website="https://acme.com", website_summary="-", uploads="None.", current_design_system="-"
+    )
+    assert "https://acme.com" in text
+    assert "{website}" not in text
 
 
 def test_render_fills_the_variables():

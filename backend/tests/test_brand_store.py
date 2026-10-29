@@ -2,17 +2,6 @@ import pytest
 from pydantic import ValidationError
 
 from app.schemas.design_system import ColorToken, DesignSystem, Identity
-from app.storage.brands import BrandStore
-
-
-@pytest.fixture
-def store(tmp_path):
-    return BrandStore(tmp_path)
-
-
-@pytest.fixture
-def brand_id(store):
-    return store.create_brand()
 
 
 def test_create_brand_makes_the_subfolders(store, brand_id):
