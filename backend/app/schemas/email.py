@@ -1,15 +1,13 @@
 """The email as the agent builds it: an ordered list of sections.
 
-Subject and preheader are sections too, so each one streams and carries its own
-reasoning. The agent edits sections by `id`, so a follow-up never restarts from a
-blank page. `render_email()` turns an `Email` into the final HTML.
+The model decides which sections exist, what they are called and what they hold.
+The only convention: the sections with id 'subject' and 'preheader' hold the subject
+line and the preview text, as plain text. Every section carries its own reasoning,
+and the agent edits sections by id, so a follow-up never restarts from a blank page.
+`render_email()` turns an `Email` into the final HTML.
 """
 
-from typing import Literal
-
 from pydantic import BaseModel, Field
-
-SectionKind = Literal["subject", "preheader", "header", "hero", "text", "cta", "footer"]
 
 
 class Section(BaseModel):
@@ -20,13 +18,12 @@ class Section(BaseModel):
     from that decision.
     """
 
-    id: str = Field(description="Stable handle used to update or remove this section.")
-    kind: SectionKind = Field(description="Which part of the email this is.")
+    id: str = Field(description="Short name of the part, chosen by the model, e.g. 'subject', 'hero', 'products'.")
     reasoning: str = Field(
         description="Why the agent made this part this way, in one or two sentences, shown to the user."
     )
     content: str = Field(
-        description="Email-safe HTML for body parts. Plain text for the subject and the preheader."
+        description="Plain text for 'subject' and 'preheader'. Email HTML with inline CSS for every other part."
     )
 
 
