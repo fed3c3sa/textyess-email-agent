@@ -4,18 +4,13 @@ from pydantic import TypeAdapter, ValidationError
 from app.schemas.email import Email, Section
 from app.schemas.events import SectionAddedEvent, StreamEvent
 
-hero = Section(id="hero", kind="hero", reasoning="Big promise first.", content="<h1>-20%</h1>")
+hero = Section(id="hero", reasoning="Big promise first.", content="<h1>-20%</h1>")
 
 
 def test_reasoning_comes_before_content():
     """The model writes fields in order, so it must decide why before writing the HTML."""
     fields = list(Section.model_fields)
     assert fields.index("reasoning") < fields.index("content")
-
-
-def test_section_kind_is_restricted():
-    with pytest.raises(ValidationError):
-        Section(id="x", kind="banner", reasoning="r", content="c")
 
 
 def test_empty_email_is_valid():
