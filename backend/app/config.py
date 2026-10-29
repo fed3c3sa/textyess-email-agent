@@ -1,6 +1,7 @@
 """Settings, read from the environment or from the `.env` file at the root of the repository."""
 
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -24,6 +25,10 @@ class Settings(BaseSettings):
     openrouter_api_key: str = Field(description="Key for OpenRouter, which serves the language model.")
     firecrawl_api_key: str = Field(description="Key for Firecrawl, which reads websites.")
     model: str = Field(default="z-ai/glm-5.3-flash", description="OpenRouter id of the model used by every agent.")
+    reasoning_effort: Literal["xhigh", "high", "medium", "low", "minimal", "none"] = Field(
+        default="low",
+        description="How much the model thinks before answering. Less is faster",
+    )
     data_dir: Path = Field(
         default=REPO_ROOT / "backend" / "data", description="Folder for brands and the chat database."
     )
