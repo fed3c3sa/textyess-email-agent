@@ -12,6 +12,7 @@ import asyncio
 import shutil
 import time
 
+from app.agentic_infra.cost import CostCounter
 from app.config import Settings
 from app.agentic_infra.agents.scraper.agent import scrape_brand
 from app.storage.brands import BrandStore
@@ -25,10 +26,11 @@ async def main(url: str | None, files: list[str]) -> None:
         shutil.copy(file, store.brand_dir(brand_id) / "uploads")
 
     start = time.time()
-    result = await scrape_brand(store, brand_id, url, settings, report=print)
+    cost = CostCounter()
+    result = await scrape_brand(store, brand_id, url, settings, report=print, callbacks=[cost])
 
     print(result.model_dump_json(indent=2))
-    print(f"Brand {brand_id} saved in {store.brand_dir(brand_id)}, in {time.time() - start:.0f} seconds.")
+    print(f"Brand {brand_id} saved in {store.brand_dir(brand_id)}, in {time.time() - start:.0f} seconds, for ${cost.usd:.4f}.")
 
 
 if __name__ == "__main__":

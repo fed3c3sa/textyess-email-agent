@@ -86,7 +86,7 @@ class FakeAgent:
     def __init__(self, result: ScrapeResult | None):
         self.result, self.messages = result, []
 
-    async def ainvoke(self, state):
+    async def ainvoke(self, state, config=None):
         self.messages.extend(state["messages"])
         return {"structured_response": self.result, "messages": state["messages"]}
 
@@ -100,7 +100,7 @@ class FakeModel:
     def with_structured_output(self, schema):
         return self
 
-    async def ainvoke(self, messages):
+    async def ainvoke(self, messages, config=None):
         return self.result
 
 
