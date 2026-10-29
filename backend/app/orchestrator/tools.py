@@ -8,13 +8,14 @@ preview changes while the agent works. The session's brand comes from the run's
 context.
 """
 
+from dataclasses import dataclass
 from typing import Annotated, Any, NotRequired
 
 from langchain.agents import AgentState
 from langchain.tools import BaseTool, ToolRuntime, tool
 from langchain_core.messages import ToolMessage
 from langgraph.types import Command
-from pydantic import BaseModel, ValidationError
+from pydantic import ValidationError
 
 from app.config import Settings
 from app.schemas.email import Email, Section
@@ -23,7 +24,8 @@ from app.scraper.agent import scrape_brand
 from app.storage.brands import BrandStore
 
 
-class OrchestratorContext(BaseModel):
+@dataclass
+class OrchestratorContext:
     """Fixed for a whole run: the brand of the chat session."""
 
     brand_id: str
@@ -78,7 +80,7 @@ def build_orchestrator_tools(store: BrandStore, settings: Settings) -> list[Base
 
     @tool(parse_docstring=True)
     def write_section(
-        section_id: str, reasoning: str, content: str, runtime: ToolRuntime, position: int | None = None
+        section_id: str, reasoning: str, content: str, runtime: ToolRuntime[OrchestratorContext], position: int | None = None
     ) -> Command:
         """Write one part of the email: add it, or replace it if a part with this id exists.
 
@@ -104,7 +106,7 @@ def build_orchestrator_tools(store: BrandStore, settings: Settings) -> list[Base
         return Command(update={"email": edit, "messages": [reply(runtime, text)]})
 
     @tool(parse_docstring=True)
-    def remove_section(section_id: str, runtime: ToolRuntime) -> Command | str:
+    def remove_section(section_id: str, runtime: ToolRuntime[OrchestratorContext]) -> Command | str:
         """Take a part out of the email.
 
         Args:
@@ -120,7 +122,7 @@ def build_orchestrator_tools(store: BrandStore, settings: Settings) -> list[Base
         return Command(update={"email": edit, "messages": [reply(runtime, f"Removed '{section_id}'.")]})
 
     @tool(parse_docstring=True)
-    def save_note(note: str, runtime: ToolRuntime) -> str:
+    def save_note(note: str, runtime: ToolRuntime[OrchestratorContext]) -> str:
         """Remember a preference of the user for every future email of this brand. Call it only after the user said yes.
 
         Args:
@@ -130,7 +132,7 @@ def build_orchestrator_tools(store: BrandStore, settings: Settings) -> list[Base
         return "Saved. Every future email will follow it."
 
     @tool(parse_docstring=True)
-    def update_design_system(field: str, value: Any, runtime: ToolRuntime) -> str:
+    def update_design_system(field: str, value: Any, runtime: ToolRuntime[OrchestratorContext]) -> str:
         """Change one field of the brand's design system, for this and every future email.
 
         Args:
@@ -146,7 +148,7 @@ def build_orchestrator_tools(store: BrandStore, settings: Settings) -> list[Base
         return f"Changed {field}."
 
     @tool(parse_docstring=True)
-    async def learn_brand(runtime: ToolRuntime, url: str | None = None) -> str:
+    async def learn_brand(runtime: ToolRuntime[OrchestratorContext], url: str | None = None) -> str:
         """Learn the brand from its website and from the files the user uploaded in this chat.
 
         It takes about a minute. What it learns is added to the brand's design system.

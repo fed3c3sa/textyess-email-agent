@@ -77,6 +77,7 @@ async def scrape_brand(
             ModelCallLimitMiddleware(run_limit=SCRAPER_MAX_MODEL_CALLS),  # stops the search loop
         ],
         response_format=ToolStrategy(ScrapeResult),
+        name="scraper",
     )
     output = await agent.ainvoke({"messages": [message]})
 

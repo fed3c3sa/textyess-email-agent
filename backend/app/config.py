@@ -27,3 +27,6 @@ class Settings(BaseSettings):
     data_dir: Path = Field(
         default=REPO_ROOT / "backend" / "data", description="Folder for brands and the chat database."
     )
+    public_url: str = Field(
+        default="http://localhost:8000", description="Address of the API, used to link the images saved on disk."
+    )
