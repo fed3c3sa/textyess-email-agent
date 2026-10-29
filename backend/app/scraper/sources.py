@@ -49,7 +49,7 @@ async def read_website(url: str, brand_dir: Path, firecrawl: AsyncFirecrawl, htt
     except Exception as error:
         return f"Could not read {url}: {error}"
 
-    branding = page.branding.model_dump(exclude_none=True) if page.branding else {}
+    branding = without_inline_images(page.branding.model_dump(exclude_none=True)) if page.branding else {}
     (raw_dir / "branding.json").write_text(json.dumps(branding, indent=2))
     (raw_dir / "page.md").write_text(page.markdown or "")
     (raw_dir / "page.html").write_text(page.raw_html or "")
@@ -75,6 +75,21 @@ async def read_website(url: str, brand_dir: Path, firecrawl: AsyncFirecrawl, htt
         *([f"- /assets/{name} -> {source}" for name, source in images] or ["(none)"]),
     ]
     return "\n".join(lines)
+
+
+def without_inline_images(value):
+    """A copy of `value` where every inline image (a 'data:' string) is replaced by a short note.
+
+    Firecrawl often returns the logo as an inline SVG of 20,000+ characters, which
+    the model cannot read and an email cannot use.
+    """
+    if isinstance(value, dict):
+        return {key: without_inline_images(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [without_inline_images(item) for item in value]
+    if isinstance(value, str) and value.startswith("data:"):
+        return "(inline image left out)"
+    return value
 
 
 def website_image_urls(page) -> list[str]:
