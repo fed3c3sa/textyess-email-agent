@@ -12,7 +12,7 @@ from langgraph.graph import END, START, StateGraph
 
 from app.config import Settings
 from app.render import render_email
-from app.agents.orchestrator.tools import (
+from app.agentic_infra.agents.orchestrator.tools import (
     OrchestratorContext,
     OrchestratorState,
     apply_email_edit,

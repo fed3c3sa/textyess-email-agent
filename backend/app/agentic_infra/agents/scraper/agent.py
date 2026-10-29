@@ -27,9 +27,9 @@ from langchain_openrouter import ChatOpenRouter
 from PIL import Image
 
 from app.config import MAX_IMAGE_WIDTH, MAX_IMAGES_TO_MODEL, SCRAPER_MAX_MODEL_CALLS, Settings
-from app.agents.prompts import render_system_prompt, render_text
+from app.agentic_infra.prompts import render_system_prompt, render_text
 from app.schemas.design_system import DesignSystem, ScrapeResult
-from app.agents.scraper.sources import prepare_pdf, read_website
+from app.agentic_infra.agents.scraper.sources import prepare_pdf, read_website
 from app.storage.brands import BrandStore
 
 READ_ONLY_FILE_TOOLS = ["ls", "read_file", "glob", "grep"]

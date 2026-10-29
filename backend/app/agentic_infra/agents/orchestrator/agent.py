@@ -21,8 +21,8 @@ from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 from app.config import Settings
-from app.agents.orchestrator.tools import OrchestratorContext, OrchestratorState, build_orchestrator_tools
-from app.agents.prompts import render_system_prompt
+from app.agentic_infra.agents.orchestrator.tools import OrchestratorContext, OrchestratorState, build_orchestrator_tools
+from app.agentic_infra.prompts import render_system_prompt
 from app.schemas.design_system import DesignSystem
 from app.schemas.email import Email
 from app.schemas.events import DoneEvent, EmailReplacedEvent, ErrorEvent, MessageEvent

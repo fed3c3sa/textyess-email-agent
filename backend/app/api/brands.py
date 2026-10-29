@@ -16,7 +16,7 @@ from app.api.dependencies import get_settings, get_store, known_brand
 from app.schemas.api import FieldChange, LearnRequest
 from app.schemas.design_system import DesignSystem
 from app.schemas.events import BrandReadyEvent, DoneEvent, ErrorEvent, StatusEvent, to_sse
-from app.agents.scraper.agent import scrape_brand
+from app.agentic_infra.agents.scraper.agent import scrape_brand
 from app.storage.brands import BrandStore
 
 router = APIRouter(prefix="/brands", tags=["brands"])

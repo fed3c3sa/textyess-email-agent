@@ -7,8 +7,8 @@ from langchain_core.messages import AIMessageChunk
 from langgraph.graph import END, START, StateGraph
 
 from app.config import Settings
-from app.agents.orchestrator.agent import AGENT_NAME, open_memory, orchestrator_prompt, stream_turn, with_asset_urls
-from app.agents.orchestrator.tools import OrchestratorState
+from app.agentic_infra.agents.orchestrator.agent import AGENT_NAME, open_memory, orchestrator_prompt, stream_turn, with_asset_urls
+from app.agentic_infra.agents.orchestrator.tools import OrchestratorState
 from app.schemas.design_system import Asset, DesignSystem, Identity
 from app.schemas.email import Email, Section
 

@@ -14,7 +14,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import Settings
-from app.agents.orchestrator.agent import build_orchestrator, open_memory
+from app.agentic_infra.agents.orchestrator.agent import build_orchestrator, open_memory
 from app.api import brands, sessions
 from app.storage.brands import BrandStore
 

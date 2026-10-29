@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 
 from app.api.dependencies import get_agent, known_brand
-from app.agents.orchestrator.agent import stream_turn
+from app.agentic_infra.agents.orchestrator.agent import stream_turn
 from app.render import render_email
 from app.schemas.api import ChatMessage
 from app.schemas.email import Email

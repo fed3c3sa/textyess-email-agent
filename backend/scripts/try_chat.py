@@ -13,7 +13,7 @@ import asyncio
 from uuid import uuid4
 
 from app.config import Settings
-from app.agents.orchestrator.agent import build_orchestrator, open_memory, stream_turn
+from app.agentic_infra.agents.orchestrator.agent import build_orchestrator, open_memory, stream_turn
 from app.render import render_email
 from app.schemas.email import Email
 from app.storage.brands import BrandStore
