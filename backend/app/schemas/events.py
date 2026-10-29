@@ -8,6 +8,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
 
+from app.schemas.design_system import Conflict, DesignSystem
 from app.schemas.email import Email, Section
 
 
@@ -55,6 +56,15 @@ class EmailReplacedEvent(BaseModel):
     email: Email
 
 
+class BrandReadyEvent(BaseModel):
+    """The scraper finished: the saved design system, and the conflicts to show to the user."""
+
+    type: Literal["brand_ready"] = "brand_ready"
+    brand_id: str
+    design_system: DesignSystem
+    conflicts: list[Conflict] = Field(default_factory=list)
+
+
 class DoneEvent(BaseModel):
     """The run finished."""
 
@@ -77,6 +87,7 @@ StreamEvent = Annotated[
     | SectionUpdatedEvent
     | SectionRemovedEvent
     | EmailReplacedEvent
+    | BrandReadyEvent
     | DoneEvent
     | ErrorEvent,
     Field(discriminator="type"),
