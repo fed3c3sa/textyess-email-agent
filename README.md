@@ -23,7 +23,7 @@ flowchart TB
     UPDATE["update_design_system<br/>(field, value)<br/>conflict answers and corrections"]
 
     RET{{"Scraper returns"}}
-    DS[("Design system JSON<br/>structured output, all fields optional<br/>css = distilled rules, not the raw dump")]
+    DS[("Design system JSON<br/>structured output, all fields optional<br/>styles as inline CSS in html_examples")]
     ASSETS[/"Assets dir"/]
     CONF>"conflicts[]<br/>transient, never stored<br/>design system is saved with the PDF values<br/>(documents win over the website)<br/>user can override on the Setup screen or in the chat"]
 

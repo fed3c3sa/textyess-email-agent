@@ -42,18 +42,6 @@ class Font(BaseModel):
     family: str = Field(description="Font family name, e.g. 'Helvetica Neue'.")
 
 
-class CssRules(BaseModel):
-    """Distilled CSS declarations per element. Not the raw dump (that stays in raw/)."""
-
-    body: str = Field(default="", description="Declarations for body text, e.g. 'color:#111;font-size:16px'.")
-    headings: str = Field(default="", description="Declarations for h1-h3.")
-    links: str = Field(default="", description="Declarations for links.")
-    buttons: str = Field(default="", description="Declarations for call-to-action buttons.")
-    container: str = Field(
-        default="", description="Declarations for the main content container (background, padding, border)."
-    )
-
-
 class Voice(BaseModel):
     """How the brand sounds."""
 
@@ -68,10 +56,12 @@ class Voice(BaseModel):
 
 
 class HtmlSnippet(BaseModel):
-    """A reference snippet of the brand's HTML, not a full page."""
+    """A short snippet of the brand's HTML with inline CSS, ready to reuse in an email."""
 
     kind: Literal["header", "hero", "cta", "footer"] = Field(description="Which part of an email it shows.")
-    html: str = Field(description="The snippet's HTML. Keep it short.")
+    html: str = Field(
+        description="Short HTML with the brand's styles as inline CSS (colors, fonts, sizes, padding, radius)."
+    )
 
 
 class Asset(BaseModel):
@@ -87,14 +77,14 @@ class DesignSystem(BaseModel):
 
     identity: Identity = Field(default_factory=Identity, description="Who the brand is.")
     colors: list[ColorToken] = Field(default_factory=list, description="The brand color palette.")
-    css: CssRules = Field(default_factory=CssRules, description="Distilled CSS rules for the main elements.")
     fonts: list[Font] = Field(default_factory=list, description="Fonts for headings and body text.")
     voice: Voice = Field(default_factory=Voice, description="How the brand sounds.")
     guidelines: str = Field(
         default="", description="Free-text design guidelines: layout, spacing, imagery, what to avoid."
     )
     html_examples: list[HtmlSnippet] = Field(
-        default_factory=list, description="Short HTML snippets (header, hero, cta, footer) from the brand."
+        default_factory=list,
+        description="The brand's header, hero, cta and footer as short HTML with inline CSS. They carry its styles.",
     )
     assets: list[Asset] = Field(default_factory=list, description="Images the emails can use.")
     email_constraints: list[str] = Field(
@@ -112,7 +102,7 @@ class Conflict(BaseModel):
     """Website and document disagree on one field. The document value is used."""
 
     field: str = Field(
-        description="Dotted path of the field through the objects, e.g. 'css.buttons' or 'identity.name'. "
+        description="Dotted path of the field through the objects, e.g. 'identity.name' or 'voice.tone'. "
         "A list field is named whole, e.g. 'colors'."
     )
     website_value: str = Field(description="Value found on the website.")

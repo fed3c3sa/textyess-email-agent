@@ -22,10 +22,9 @@ Everything is already gathered for you in the user message: what the website gav
 - identity: the brand name, the language it writes in as a code (en, it, fr...), and one or two sentences on what it sells.
 - colors: each color with a role (primary, background, text, cta, link, accent) and its hex code.
 - fonts: the family used for headings and the family used for body text.
-- css: a few declarations per element (body, headings, links, buttons, container), such as color, font size and padding. The design system goes into every email request, so keep it short.
 - voice: the tone in a few adjectives, habits to follow and to avoid, and sample phrases quoted word for word from the sources.
 - guidelines: layout, spacing and imagery rules in a few sentences.
-- html_examples: short snippets of the brand's own header, hero, call to action and footer.
+- html_examples: the brand's header, hero, call to action and footer as short HTML with inline CSS: colors, fonts, sizes, padding, radius. Copy them from the website or a past email, or build them from what a guideline shows. They are where the brand's styles live. The design system goes into every email request, so keep them short.
 - assets: the useful images, logo first, then hero and product images. Describe each one and when to use it. The pointer is the image's original URL when it comes from the website (see the image list in what the website gave), or its path, such as /assets/guide-1.png, otherwise.
 - email_constraints: rules the sources give for communications, such as a legal footer or an unsubscribe line. One plain sentence each.
 - user_notes: leave empty. Only the user writes them.

@@ -68,7 +68,7 @@ class BrandStore:
     def update_field(self, brand_id: str, path: str, value: Any) -> DesignSystem:
         """Set one field and return the new design system.
 
-        `path` goes through objects with dots, e.g. 'css.buttons' or 'identity.name'.
+        `path` goes through objects with dots, e.g. 'identity.name' or 'voice.tone'.
         A list field such as 'colors' is replaced whole. Raises ValueError for an
         unknown path, and pydantic's ValidationError if the value has the wrong shape.
         """
