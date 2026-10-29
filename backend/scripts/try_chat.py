@@ -51,6 +51,8 @@ async def main(brand_id: str | None) -> None:
     async with open_memory(settings.data_dir / "chat.sqlite") as memory:
         agent = build_orchestrator(store, settings, memory)
         while (text := input("\nyou> ").strip()) != "quit":
+            if not text:  # an Enter pressed by mistake, or while the agent was working
+                continue
             selected_section = None
             if text.startswith("@"):
                 selected_section, _, text = text[1:].partition(" ")
