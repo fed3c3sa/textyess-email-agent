@@ -54,6 +54,7 @@ def build_orchestrator(store: BrandStore, settings: Settings, memory: AsyncSqlit
         model=ChatOpenRouter(
             model=settings.model,
             openrouter_api_key=settings.openrouter_api_key,
+            reasoning={"effort": settings.reasoning_effort},
             # One section per call streams best. Not every model respects it; the email's
             # reducer keeps parallel calls safe anyway.
             model_kwargs={"parallel_tool_calls": False},
