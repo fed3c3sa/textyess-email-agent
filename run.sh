@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Start the email agent with one command: ./run.sh
-# The first run creates the Python environment and installs the dependencies.
+# Starts the API (backend/) and the web app (frontend/). The first run installs everything.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -15,5 +15,12 @@ if [ ! -d .venv ]; then
 fi
 .venv/bin/pip install --quiet --disable-pip-version-check -r requirements.txt
 
-echo "API on http://localhost:8000 (interactive docs on http://localhost:8000/docs)"
-exec .venv/bin/uvicorn app.main:create_app --factory --port 8000
+.venv/bin/uvicorn app.main:create_app --factory --port 8000 &
+trap 'kill $!' EXIT  # stop the API when the frontend stops (Ctrl+C)
+
+cd ../frontend
+if [ ! -d node_modules ]; then
+  npm install
+fi
+echo "Open http://localhost:5173 (API on http://localhost:8000, docs on http://localhost:8000/docs)"
+npm run dev
