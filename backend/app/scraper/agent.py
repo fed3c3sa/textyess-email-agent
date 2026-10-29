@@ -6,24 +6,27 @@ The steps run in order:
 3. Build one user message with all the text and every image. The images go there,
    and not through a tool, because the model can only see images in a user message.
 4. Run the agent. It can search the saved text files, and returns a ScrapeResult.
+   If it uses all its model calls without answering, one last call asks for the answer.
 5. Save the design system (BrandStore keeps the user's notes) and return the result.
 """
 
 import base64
+import io
 from collections.abc import Callable
 from pathlib import Path
 
 import httpx
-import pymupdf
 from deepagents.backends import FilesystemBackend
 from deepagents.middleware.filesystem import FilesystemMiddleware
 from firecrawl import AsyncFirecrawl
 from langchain.agents import create_agent
+from langchain.agents.middleware import ModelCallLimitMiddleware
 from langchain.agents.structured_output import ToolStrategy
 from langchain_core.messages import HumanMessage
 from langchain_openrouter import ChatOpenRouter
+from PIL import Image
 
-from app.config import Settings
+from app.config import MAX_IMAGE_WIDTH, MAX_IMAGES_TO_MODEL, SCRAPER_MAX_MODEL_CALLS, Settings
 from app.prompts import render_system_prompt, render_text
 from app.schemas.design_system import DesignSystem, ScrapeResult
 from app.scraper.sources import prepare_pdf, read_website
@@ -32,7 +35,6 @@ from app.storage.brands import BrandStore
 READ_ONLY_FILE_TOOLS = ["ls", "read_file", "glob", "grep"]
 IMAGE_FOLDERS = ("raw", "uploads", "assets")  # the order the images appear in the message
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp", ".gif"}  # SVG is left out: models cannot see it
-MAX_IMAGE_WIDTH = 1024  # wider images are shrunk, to keep the request small
 
 
 async def scrape_brand(
@@ -62,20 +64,30 @@ async def scrape_brand(
 
     report("Building the design system...")
     message = build_first_message(brand_dir, url, website_summary, store.load(brand_id))
+    model = ChatOpenRouter(model=settings.model, openrouter_api_key=settings.openrouter_api_key)
+    system_prompt = render_system_prompt("scraper_system")
     agent = create_agent(
-        model=ChatOpenRouter(model=settings.model, openrouter_api_key=settings.openrouter_api_key),
-        system_prompt=render_system_prompt("scraper_system"),
+        model=model,
+        system_prompt=system_prompt,
         middleware=[
             FilesystemMiddleware(
                 backend=FilesystemBackend(root_dir=brand_dir, virtual_mode=True),
                 tools=READ_ONLY_FILE_TOOLS,
-            )
+            ),
+            ModelCallLimitMiddleware(run_limit=SCRAPER_MAX_MODEL_CALLS),  # stops the search loop
         ],
         response_format=ToolStrategy(ScrapeResult),
     )
-    output = await agent.ainvoke({"messages": [message]}, config={"recursion_limit": settings.scraper_max_steps})
+    output = await agent.ainvoke({"messages": [message]})
 
-    result: ScrapeResult = output["structured_response"]
+    result: ScrapeResult | None = output.get("structured_response")
+    if result is None:
+        # The agent used all its model calls while searching: ask for the answer with what it found.
+        report("Writing the design system...")
+        finish = HumanMessage(render_text("scraper_finish"))
+        result = await model.with_structured_output(ScrapeResult).ainvoke([system_prompt, *output["messages"], finish])
+    if result is None:
+        raise RuntimeError("The scraper ended without a design system.")
     if url:
         result.design_system.identity.source_url = url
     store.save(brand_id, result.design_system)
@@ -85,7 +97,7 @@ async def scrape_brand(
 def build_first_message(
     brand_dir: Path, url: str | None, website_summary: str, current: DesignSystem | None
 ) -> HumanMessage:
-    """The scraper's input: the text of prompts/scraper_user.md, then every image, each after its path."""
+    """The scraper's input: the text of prompts/scraper_user.md, then up to MAX_IMAGES_TO_MODEL images, each after its path."""
     uploads = sorted(path.name for path in (brand_dir / "uploads").iterdir())
     text = render_text(
         "scraper_user",
@@ -96,26 +108,31 @@ def build_first_message(
     )
 
     content = [{"type": "text", "text": text}]
+    images_added = 0
     for folder in IMAGE_FOLDERS:
         for path in sorted((brand_dir / folder).iterdir()):
+            if images_added == MAX_IMAGES_TO_MODEL:
+                return HumanMessage(content=content)
             if path.suffix.lower() not in IMAGE_SUFFIXES:
                 continue
             block = image_block(path)
             if block:
                 content.append({"type": "text", "text": f"/{folder}/{path.name}:"})
                 content.append(block)
+                images_added += 1
     return HumanMessage(content=content)
 
 
 def image_block(path: Path) -> dict | None:
     """The image as a PNG content block, at most MAX_IMAGE_WIDTH wide. None if it cannot be read."""
     try:
-        pixmap = pymupdf.Pixmap(path)
+        image = Image.open(path)
+        image.thumbnail((MAX_IMAGE_WIDTH, MAX_IMAGE_WIDTH * 10))  # shrinks, keeping the proportions
+        if image.mode not in ("RGB", "RGBA"):  # e.g. CMYK or a palette
+            image = image.convert("RGBA")
+        buffer = io.BytesIO()
+        image.save(buffer, format="PNG")
     except Exception:
         return None
-    while pixmap.width > MAX_IMAGE_WIDTH:
-        pixmap.shrink(1)  # halves the width and the height
-    if pixmap.n - pixmap.alpha >= 4:  # CMYK cannot be saved as PNG
-        pixmap = pymupdf.Pixmap(pymupdf.csRGB, pixmap)
-    data = base64.b64encode(pixmap.tobytes("png")).decode()
+    data = base64.b64encode(buffer.getvalue()).decode()
     return {"type": "image", "base64": data, "mime_type": "image/png"}
