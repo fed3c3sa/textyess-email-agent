@@ -11,6 +11,7 @@ from fastapi.responses import FileResponse
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 from pydantic import ValidationError
 
+from app.agentic_infra.cost import CostCounter
 from app.config import Settings
 from app.api.dependencies import get_settings, get_store, known_brand
 from app.schemas.api import FieldChange, LearnRequest
@@ -54,9 +55,10 @@ async def learn(
 
     async def run() -> None:
         try:
-            result = await scrape_brand(store, brand_id, request.url, settings, report)
+            cost = CostCounter()
+            result = await scrape_brand(store, brand_id, request.url, settings, report, callbacks=[cost])
             await events.put(BrandReadyEvent(brand_id=brand_id, **result.model_dump()))
-            await events.put(DoneEvent(seconds=round(time.time() - start, 1)))
+            await events.put(DoneEvent(cost_usd=round(cost.usd, 6), seconds=round(time.time() - start, 1)))
         except Exception as error:
             await events.put(ErrorEvent(message=str(error)))
         await events.put(None)  # the end of the stream

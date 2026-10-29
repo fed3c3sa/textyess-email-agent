@@ -22,6 +22,7 @@ from firecrawl import AsyncFirecrawl
 from langchain.agents import create_agent
 from langchain.agents.middleware import ModelCallLimitMiddleware
 from langchain.agents.structured_output import ToolStrategy
+from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.messages import HumanMessage
 from langchain_openrouter import ChatOpenRouter
 from PIL import Image
@@ -43,10 +44,12 @@ async def scrape_brand(
     url: str | None,
     settings: Settings,
     report: Callable[[str], None] = lambda text: None,
+    callbacks: list[BaseCallbackHandler] | None = None,
 ) -> ScrapeResult:
     """Learn a brand from its website and uploaded files, save the design system and return it.
 
     `report` receives short progress texts, which the callers show to the user.
+    `callbacks` are LangChain callbacks for every model call, e.g. a CostCounter.
     Raises if the model does not return a valid design system.
     """
     brand_dir = store.brand_dir(brand_id)
@@ -83,14 +86,16 @@ async def scrape_brand(
         response_format=ToolStrategy(ScrapeResult),
         name="scraper",
     )
-    output = await agent.ainvoke({"messages": [message]})
+    config = {"callbacks": callbacks} if callbacks else None  # e.g. a CostCounter
+    output = await agent.ainvoke({"messages": [message]}, config=config)
 
     result: ScrapeResult | None = output.get("structured_response")
     if result is None:
         # The agent used all its model calls while searching: ask for the answer with what it found.
         report("Writing the design system...")
         finish = HumanMessage(render_text("scraper_finish"))
-        result = await model.with_structured_output(ScrapeResult).ainvoke([system_prompt, *output["messages"], finish])
+        messages = [system_prompt, *output["messages"], finish]
+        result = await model.with_structured_output(ScrapeResult).ainvoke(messages, config=config)
     if result is None:
         raise RuntimeError("The scraper ended without a design system.")
     if url:
