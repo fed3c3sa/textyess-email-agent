@@ -11,8 +11,8 @@ import pytest
 from langgraph.graph import END, START, StateGraph
 
 from app.config import Settings
-from app.orchestrator.render import render_email
-from app.orchestrator.tools import (
+from app.render import render_email
+from app.agents.orchestrator.tools import (
     OrchestratorContext,
     OrchestratorState,
     apply_email_edit,

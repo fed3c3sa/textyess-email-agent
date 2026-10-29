@@ -7,8 +7,8 @@ from langchain_core.messages import AIMessageChunk
 from langgraph.graph import END, START, StateGraph
 
 from app.config import Settings
-from app.orchestrator.agent import AGENT_NAME, open_memory, orchestrator_prompt, stream_turn, with_asset_urls
-from app.orchestrator.tools import OrchestratorState
+from app.agents.orchestrator.agent import AGENT_NAME, open_memory, orchestrator_prompt, stream_turn, with_asset_urls
+from app.agents.orchestrator.tools import OrchestratorState
 from app.schemas.design_system import Asset, DesignSystem, Identity
 from app.schemas.email import Email, Section
 
@@ -25,7 +25,7 @@ def test_local_asset_pointers_become_urls():
 
     assets = with_asset_urls(design_system, "abcd1234", "http://localhost:8000").assets
 
-    assert assets[0].pointer == "http://localhost:8000/brands/abcd1234/assets/guide-1.png"
+    assert assets[0].pointer == "http://localhost:8000/brands/abcd1234/files/assets/guide-1.png"
     assert assets[1].pointer == "https://acme.com/hero.jpg"  # public URLs are kept
 
 

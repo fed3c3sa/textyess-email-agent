@@ -21,8 +21,8 @@ from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 from app.config import Settings
-from app.orchestrator.tools import OrchestratorContext, OrchestratorState, build_orchestrator_tools
-from app.prompts import render_system_prompt
+from app.agents.orchestrator.tools import OrchestratorContext, OrchestratorState, build_orchestrator_tools
+from app.agents.prompts import render_system_prompt
 from app.schemas.design_system import DesignSystem
 from app.schemas.email import Email
 from app.schemas.events import DoneEvent, EmailReplacedEvent, ErrorEvent, MessageEvent
@@ -80,7 +80,7 @@ def orchestrator_prompt(store: BrandStore, settings: Settings, brand_id: str, em
 def with_asset_urls(design_system: DesignSystem, brand_id: str, public_url: str) -> DesignSystem:
     """The design system with local asset pointers ('/assets/logo.png') turned into URLs served by the API."""
     assets = [
-        asset.model_copy(update={"pointer": f"{public_url}/brands/{brand_id}{asset.pointer}"})
+        asset.model_copy(update={"pointer": f"{public_url}/brands/{brand_id}/files{asset.pointer}"})
         if asset.pointer.startswith("/")
         else asset
         for asset in design_system.assets

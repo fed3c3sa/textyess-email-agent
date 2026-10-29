@@ -8,8 +8,8 @@ from PIL import Image
 
 from app.config import MAX_IMAGE_WIDTH, MAX_IMAGES_TO_MODEL, Settings
 from app.schemas.design_system import Conflict, DesignSystem, Identity, ScrapeResult
-from app.scraper import agent as scraper_agent
-from app.scraper.agent import build_first_message, image_block, scrape_brand
+from app.agents.scraper import agent as scraper_agent
+from app.agents.scraper.agent import build_first_message, image_block, scrape_brand
 from tests.conftest import make_pdf, png
 
 

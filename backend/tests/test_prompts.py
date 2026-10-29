@@ -1,7 +1,7 @@
 import pytest
 from langchain_core.messages import SystemMessage
 
-from app.prompts import load_prompt, render_system_prompt, render_text
+from app.agents.prompts import load_prompt, render_system_prompt, render_text
 
 
 def test_each_prompt_declares_the_variables_we_fill():

@@ -6,6 +6,7 @@ so the frontend can switch on `type` and every payload is validated.
 
 from typing import Annotated, Literal
 
+from fastapi.sse import ServerSentEvent
 from pydantic import BaseModel, Field
 
 from app.schemas.design_system import Conflict, DesignSystem
@@ -92,3 +93,9 @@ StreamEvent = Annotated[
     | ErrorEvent,
     Field(discriminator="type"),
 ]
+
+
+def to_sse(event: BaseModel | dict) -> ServerSentEvent:
+    """One event on the wire. The SSE event name is its type, so a browser can listen per type."""
+    data = event.model_dump(mode="json") if isinstance(event, BaseModel) else event
+    return ServerSentEvent(data=data, event=data["type"])

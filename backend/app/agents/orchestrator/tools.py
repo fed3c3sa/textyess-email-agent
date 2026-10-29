@@ -20,7 +20,7 @@ from pydantic import ValidationError
 from app.config import Settings
 from app.schemas.email import Email, Section
 from app.schemas.events import SectionAddedEvent, SectionRemovedEvent, SectionUpdatedEvent, StatusEvent
-from app.scraper.agent import scrape_brand
+from app.agents.scraper.agent import scrape_brand
 from app.storage.brands import BrandStore
 
 

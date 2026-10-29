@@ -13,7 +13,7 @@ import shutil
 import time
 
 from app.config import Settings
-from app.scraper.agent import scrape_brand
+from app.agents.scraper.agent import scrape_brand
 from app.storage.brands import BrandStore
 
 

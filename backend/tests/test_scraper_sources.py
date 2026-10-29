@@ -6,7 +6,7 @@ import httpx
 from firecrawl.v2.types import BrandingProfile, Document, DocumentMetadata
 
 from app.config import MAX_IMAGES_TO_MODEL, MAX_PDF_PAGES
-from app.scraper.sources import (
+from app.agents.scraper.sources import (
     download_images,
     prepare_pdf,
     read_website,
