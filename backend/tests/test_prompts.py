@@ -14,6 +14,7 @@ def test_each_prompt_declares_the_variables_we_fill():
         "website_summary",
     ]
     assert sorted(load_prompt("orchestrator_system").input_variables) == ["current_email", "design_system"]
+    assert load_prompt("scraper_finish").input_variables == []
 
 
 def test_render_text_fills_a_user_prompt():

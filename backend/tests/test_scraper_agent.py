@@ -2,13 +2,14 @@
 
 import asyncio
 import base64
+import io
 
-import pymupdf
+from PIL import Image
 
-from app.config import Settings
+from app.config import MAX_IMAGE_WIDTH, MAX_IMAGES_TO_MODEL, Settings
 from app.schemas.design_system import Conflict, DesignSystem, Identity, ScrapeResult
 from app.scraper import agent as scraper_agent
-from app.scraper.agent import MAX_IMAGE_WIDTH, build_first_message, image_block, scrape_brand
+from app.scraper.agent import build_first_message, image_block, scrape_brand
 from tests.conftest import make_pdf, png
 
 
@@ -53,8 +54,24 @@ def test_wide_images_are_shrunk(tmp_path):
 
     block = image_block(path)
 
-    width = pymupdf.Pixmap(base64.b64decode(block["base64"])).width
+    width = Image.open(io.BytesIO(base64.b64decode(block["base64"]))).width
     assert width <= MAX_IMAGE_WIDTH
+
+
+def test_webp_images_are_read(tmp_path):
+    """Many shops serve their images as WebP."""
+    path = tmp_path / "photo.webp"
+    Image.new("RGB", (50, 50), "red").save(path, format="WEBP")
+    assert image_block(path)["mime_type"] == "image/png"
+
+
+def test_first_message_stops_at_the_image_limit(brand_dir):
+    for number in range(MAX_IMAGES_TO_MODEL + 5):
+        (brand_dir / "assets" / f"image-{number:02d}.png").write_bytes(png(10, 10))
+
+    message = build_first_message(brand_dir, None, "No website was given.", None)
+
+    assert len(labels(message)) == MAX_IMAGES_TO_MODEL
 
 
 def test_a_broken_image_is_skipped(tmp_path):
@@ -64,14 +81,27 @@ def test_a_broken_image_is_skipped(tmp_path):
 
 
 class FakeAgent:
-    """Returns a fixed result and remembers the message it got."""
+    """Returns a fixed result (None: it ran out of model calls) and remembers the message it got."""
 
-    def __init__(self, result: ScrapeResult):
+    def __init__(self, result: ScrapeResult | None):
         self.result, self.messages = result, []
 
-    async def ainvoke(self, state, config):
+    async def ainvoke(self, state):
         self.messages.extend(state["messages"])
-        return {"structured_response": self.result}
+        return {"structured_response": self.result, "messages": state["messages"]}
+
+
+class FakeModel:
+    """Stands in for ChatOpenRouter: its structured output returns a fixed result."""
+
+    def __init__(self, result: ScrapeResult):
+        self.result = result
+
+    def with_structured_output(self, schema):
+        return self
+
+    async def ainvoke(self, messages):
+        return self.result
 
 
 def test_scrape_brand_prepares_the_pdf_runs_the_agent_and_saves(store, brand_id, brand_dir, monkeypatch):
@@ -94,3 +124,16 @@ def test_scrape_brand_prepares_the_pdf_runs_the_agent_and_saves(store, brand_id,
     assert saved.identity.name == "Acme"
     assert saved.user_notes == ["no emojis"]  # kept across the re-scrape
     assert reports == ["Reading the documents...", "Building the design system..."]
+
+
+def test_scrape_brand_asks_for_the_answer_when_the_agent_runs_out_of_calls(store, brand_id, monkeypatch):
+    result = ScrapeResult(design_system=DesignSystem(identity=Identity(name="Acme")))
+    monkeypatch.setattr(scraper_agent, "create_agent", lambda **kwargs: FakeAgent(None))
+    monkeypatch.setattr(scraper_agent, "ChatOpenRouter", lambda **kwargs: FakeModel(result))
+    settings = Settings(openrouter_api_key="test", firecrawl_api_key="test")
+    reports = []
+
+    asyncio.run(scrape_brand(store, brand_id, None, settings, reports.append))
+
+    assert store.load(brand_id).identity.name == "Acme"
+    assert reports[-1] == "Writing the design system..."

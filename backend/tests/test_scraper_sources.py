@@ -5,9 +5,8 @@ import asyncio
 import httpx
 from firecrawl.v2.types import BrandingProfile, Document, DocumentMetadata
 
+from app.config import MAX_IMAGES_TO_MODEL, MAX_PDF_PAGES
 from app.scraper.sources import (
-    MAX_IMAGES,
-    MAX_PDF_PAGES,
     download_images,
     prepare_pdf,
     read_website,
@@ -67,16 +66,16 @@ def test_image_urls_put_the_logo_first_without_duplicates_or_inline_data():
 
 def test_download_images_skips_what_is_not_an_image_and_stops_at_the_limit(tmp_path):
     urls = ["https://x.com/missing.png", "https://x.com/page.html"]
-    urls += [f"https://x.com/{n}.png" for n in range(MAX_IMAGES + 5)]
+    urls += [f"https://x.com/{n}.png" for n in range(MAX_IMAGES_TO_MODEL + 5)]
 
     async def run():
         async with http_client() as http:
             return await download_images(urls, tmp_path, http)
 
     saved = asyncio.run(run())
-    assert len(saved) == MAX_IMAGES
+    assert len(saved) == MAX_IMAGES_TO_MODEL
     assert saved[0] == ("image-01.png", "https://x.com/0.png")
-    assert len(list(tmp_path.iterdir())) == MAX_IMAGES
+    assert len(list(tmp_path.iterdir())) == MAX_IMAGES_TO_MODEL
 
 
 def test_read_website_saves_files_and_returns_a_short_summary(brand_dir):
