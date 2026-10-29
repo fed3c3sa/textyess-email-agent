@@ -64,7 +64,11 @@ async def scrape_brand(
 
     report("Building the design system...")
     message = build_first_message(brand_dir, url, website_summary, store.load(brand_id))
-    model = ChatOpenRouter(model=settings.model, openrouter_api_key=settings.openrouter_api_key)
+    model = ChatOpenRouter(
+        model=settings.model,
+        openrouter_api_key=settings.openrouter_api_key,
+        reasoning={"effort": settings.reasoning_effort},
+    )
     system_prompt = render_system_prompt("scraper_system")
     agent = create_agent(
         model=model,
