@@ -2,7 +2,8 @@
 
 This is only the envelope. Layout, colors and styles are all in the sections the
 model wrote. The subject becomes the title, the preheader becomes hidden text that
-email apps show in the inbox list, and the other sections follow in order.
+email apps show in the inbox list, and the other sections follow in order inside a
+centered column 600px wide: the standard frame of an HTML email.
 """
 
 import html
@@ -18,7 +19,11 @@ PAGE = """<!DOCTYPE html>
 </head>
 <body style="margin:0; padding:0;">
 <div style="display:none; max-height:0; overflow:hidden;">{preheader}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%; max-width:600px;"><tr><td>
 {body}
+</td></tr></table>
+</td></tr></table>
 </body>
 </html>
 """
