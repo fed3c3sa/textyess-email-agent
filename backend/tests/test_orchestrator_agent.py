@@ -7,7 +7,14 @@ from langchain_core.messages import AIMessageChunk
 from langgraph.graph import END, START, StateGraph
 
 from app.config import Settings
-from app.agentic_infra.agents.orchestrator.agent import AGENT_NAME, open_memory, orchestrator_prompt, stream_turn, with_asset_urls
+from app.agentic_infra.agents.orchestrator.agent import (
+    AGENT_NAME,
+    drafted_sections,
+    open_memory,
+    orchestrator_prompt,
+    stream_turn,
+    with_asset_urls,
+)
 from app.agentic_infra.agents.orchestrator.tools import OrchestratorState
 from app.schemas.design_system import Asset, DesignSystem, Identity
 from app.schemas.email import Email, Section
@@ -95,3 +102,27 @@ def test_stream_turn_passes_tool_events_and_only_the_orchestrators_words():
     assert events[1]["text"] == "Done."
     assert events[2]["email"]["sections"][0]["id"] == "subject"
     assert events[3]["cost_usd"] == 0.003  # both model calls are paid for
+
+
+def pieces(*chunks) -> AIMessageChunk:
+    """One streamed piece of a model answer, holding parts of its tool calls: (index, name, args)."""
+    return AIMessageChunk(
+        content="",
+        id="answer-1",
+        tool_call_chunks=[{"index": i, "name": name, "args": args, "id": None} for i, name, args in chunks],
+    )
+
+
+def test_a_section_is_drafted_as_soon_as_its_arguments_are_complete():
+    drafts = {}
+    hero = '{"section_id": "hero", "reasoning": "Big promise.", "content": "<h1>-20%</h1>"}'
+
+    first = drafted_sections(pieces((0, "write_section", hero[:20])), drafts)
+    second = drafted_sections(pieces((0, None, hero[20:50])), drafts)
+    third = drafted_sections(pieces((0, None, hero[50:]), (1, "remove_section", '{"section_id": "old"}')), drafts)
+    again = drafted_sections(pieces((2, "write_section", '{"section_id": "cta", "reasoning": "r", "content": "c"}')), drafts)
+
+    assert first == [] and second == []  # not valid JSON yet
+    assert [s.id for s in third] == ["hero"]  # complete; remove_section is not a draft
+    assert [s.id for s in again] == ["cta"]  # the next call in the same answer
+
