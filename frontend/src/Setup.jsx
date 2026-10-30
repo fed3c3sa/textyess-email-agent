@@ -9,6 +9,7 @@ import DesignSystem from "./DesignSystem.jsx";
 export default function Setup({ brandId, onBrand, onLearned, onOpenStudio }) {
   const [url, setUrl] = useState("");
   const [files, setFiles] = useState([]);
+  const [pastedHtml, setPastedHtml] = useState(""); // a past email, pasted as HTML
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState([]);
   const [designSystem, setDesignSystem] = useState(null);
@@ -28,7 +29,9 @@ export default function Setup({ brandId, onBrand, onLearned, onOpenStudio }) {
     try {
       const id = brandId ?? (await createBrand()).brand_id;
       onBrand(id);
-      if (files.length) await uploadFiles(id, files);
+      // A pasted email is uploaded like any other document, as a file in the brand's uploads.
+      const pasted = pastedHtml.trim() ? [new File([pastedHtml], "past-email.html", { type: "text/html" })] : [];
+      if (files.length || pasted.length) await uploadFiles(id, [...files, ...pasted]);
 
       for await (const event of learnBrand(id, url)) {
         if (event.type === "status") setProgress((lines) => [...lines, event.text]);
@@ -64,9 +67,19 @@ export default function Setup({ brandId, onBrand, onLearned, onOpenStudio }) {
             accept=".pdf,.html,.htm,image/*"
             onChange={(e) => setFiles([...e.target.files])}
           />
-          <span className="hint">A brand guideline PDF, images, or a past email as HTML.</span>
+          <span className="hint">A brand guideline PDF, images, or a past email as an HTML file.</span>
         </label>
-        <button className="primary" disabled={running || (!url && !files.length)}>
+        <label>
+          Past email (HTML)
+          <textarea
+            rows={5}
+            placeholder="Or paste the HTML of an email the brand has already sent..."
+            value={pastedHtml}
+            onChange={(e) => setPastedHtml(e.target.value)}
+          />
+          <span className="hint">Its colors, fonts and blocks are often the best source: they are already email-ready.</span>
+        </label>
+        <button className="primary" disabled={running || (!url && !files.length && !pastedHtml.trim())}>
           {running ? "Learning..." : "Learn the brand"}
         </button>
       </form>

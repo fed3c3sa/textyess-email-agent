@@ -131,7 +131,7 @@ ul { margin: 0; padding-left: 18px; }
 .error { color: var(--red); }
 .empty { text-align: center; margin-top: 40px; }
 
-input[type="url"], .input-row input {
+input[type="url"], .input-row input, textarea {
   width: 100%;
   padding: 11px 14px;
   border: 1px solid var(--border);
@@ -140,7 +140,8 @@ input[type="url"], .input-row input {
   outline: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
-input:focus { border-color: var(--indigo); box-shadow: 0 0 0 3px var(--indigo-soft); }
+input:focus, textarea:focus { border-color: var(--indigo); box-shadow: 0 0 0 3px var(--indigo-soft); }
+textarea { resize: vertical; font-family: ui-monospace, Menlo, monospace; font-size: 12px; line-height: 1.5; font-weight: 400; }
 input[type="file"] { color: var(--muted); }
 input[type="file"]::file-selector-button {
   margin-right: 12px;
