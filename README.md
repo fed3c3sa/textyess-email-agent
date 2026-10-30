@@ -2,7 +2,7 @@
 
 An agent that learns a brand once, from its website and documents, then writes on-brand marketing emails from a chat. The email appears in the preview part by part while the agent writes it, and every part comes with the reason it was made that way.
 
-![Studio: a Black Friday email for Liquid Death](docs/screenshots/liquiddeath-studio.png)
+![Studio: a Black Friday email for OpenRouter, in its dark theme](docs/screenshots/openrouter-studio.png)
 
 ---
 
@@ -59,7 +59,9 @@ cd backend
 
 The user gives a **website URL**, **documents** (a brand guideline PDF, images, a past email as an HTML file) and/or **pastes the HTML of a past email**. The agent builds the brand's design system and shows it: identity, palette, fonts, voice, images, the brand's own email blocks rendered live, email rules. If the website and a document disagree, the user sees both values.
 
-![Setup: the design system Liquid Death](docs/screenshots/liquiddeath-setup.png)
+**Export JSON** downloads the design system as a file, so the brand learned here can be reused in any other AI agent (a coding agent, a chat assistant, another email tool). Image links become full URLs, so they open outside the app.
+
+![Setup: the design system of OpenRouter](docs/screenshots/openrouter-setup.png)
 
 ### Screen 2: Studio
 
@@ -67,7 +69,7 @@ Chat on the left, live preview on the right. The user asks for an email; the par
 
 | While the agent writes | After a follow-up edit |
 |---|---|
-| ![Streaming](docs/screenshots/liquiddeath-studio-streaming.png) | ![Edit](docs/screenshots/secondbrain-studio-edit.png) |
+| ![Streaming](docs/screenshots/openrouter-studio-streaming.png) | ![Edit](docs/screenshots/secondbrain-studio-edit.png) |
 
 The reasoning is shown in three places, from light to detailed, so it never drowns the email:
 1. **Hover a part of the email** to see why it was made that way.
@@ -80,9 +82,11 @@ The reasoning is shown in three places, from light to detailed, so it never drow
 
 The same request ("Generate an email for a Black Friday event with a 20% discount") on two brands learned from their websites:
 
-| SecondBrain: light, minimal, calm | Liquid Death: dark, loud, irreverent |
+| SecondBrain: light, minimal, calm | OpenRouter: dark, technical, neon lime |
 |---|---|
-| ![SecondBrain](docs/screenshots/secondbrain-studio.png) | ![Liquid Death](docs/screenshots/liquiddeath-studio.png) |
+| ![SecondBrain](docs/screenshots/secondbrain-studio.png) | ![OpenRouter](docs/screenshots/openrouter-studio.png) |
+
+openrouter.ai shows its dark theme only when the browser asks for it, so Firecrawl sees the light one. OpenRouter was learned from its website **plus a screenshot of its dark theme**, uploaded as a document (25 s, $0.06). The agent kept both themes: the light palette, a `dark-background` color and a guideline ("the dark theme uses near-black with lime accent buttons"). The request for OpenRouter adds "Use the brand's dark theme".
 
 ### Decisions, and why
 
@@ -315,7 +319,7 @@ Both are settings (`scraper_model`, `orchestrator_model` in `config.py`, or `SCR
 | | Time | Cost |
 |---|---|---|
 | One design system (Sonnet) | 12 s (a pasted email) to 65 s (a large website) | $0.04 to $0.20, plus 1 Firecrawl credit per website |
-| One email (GLM) | 7 to 35 s, first part after a few seconds | $0.002 to $0.007 |
+| One email (GLM) | 7 to 41 s, first part after a few seconds | $0.0004 to $0.007 |
 | One edit (GLM) | about 6 s | about $0.002 |
 
 Costs come from OpenRouter's answers (`CostCounter`, a LangChain callback) and are shown in the UI after every turn.
@@ -364,8 +368,8 @@ A golden set of websites, documents, design systems and emails. It grows over ti
 |---|---|---|---|
 | 1 | SecondBrain (light, minimal) | Black Friday, 20% off | the baseline |
 | 2 | same session | "Make it 30% and add urgency" | edits in place |
-| 3 | Liquid Death (dark theme) | launch of a new flavor | a dark theme |
-| 4 | Liquid Death | "Soft pastel colors and lots of emojis" | a prompt that conflicts with the brand |
+| 3 | OpenRouter (dark theme) | launch of a new model | a dark theme |
+| 4 | OpenRouter | "Soft pastel colors and lots of emojis" | a prompt that conflicts with the brand |
 | 5 | a one-page "coming soon" site | welcome email | a website with almost no information |
 | 6 | an Italian shop | the same request, in Italian | a language other than English |
 | 7 | a brand guideline PDF only | spring sale | documents without a website |
