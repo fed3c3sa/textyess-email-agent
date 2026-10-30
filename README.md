@@ -426,7 +426,8 @@ The evaluation can run as a testing step: a smoke test of 3 cases on every chang
 5. **The render-and-look loop**: render the email, give the screenshot to a vision model, fix what is off-brand.
 6. **Editing the design system on Setup** (the API already exists), **undo** and **reopening past chats**.
 7. **Send a test email** to a real inbox, and check rendering across email clients.
-8. Move to LangGraph's event streaming when it is stable; Postgres and object storage for production.
+8. **Prompt caching**, to cut the cost and time of the model calls.
+9. Move to LangGraph's event streaming when it is stable; Postgres and object storage for production.
 
 ---
 
