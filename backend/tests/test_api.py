@@ -54,3 +54,14 @@ def test_a_new_session_has_no_email_yet(client, brand_id):
 
     assert response.json()["email"] == {"sections": []}
     assert "<!DOCTYPE html>" in response.json()["html"]
+
+
+def test_brands_are_listed_with_their_name(client, brand_id):
+    client.patch(f"/brands/{brand_id}", json={"field": "identity.name", "value": "Acme"})
+    other = client.post("/brands").json()["brand_id"]
+
+    brands = client.get("/brands").json()
+
+    assert {"brand_id": brand_id, "name": "Acme"} in brands
+    assert {"brand_id": other, "name": None} in brands
+
