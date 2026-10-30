@@ -26,6 +26,11 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/brands", tags=["brands"])
 
 
+@router.get("")
+def list_brands(store: BrandStore = Depends(get_store)) -> list[dict]:
+    return [{"brand_id": brand_id, "name": name} for brand_id, name in store.list_brands()]
+
+
 @router.post("")
 def create_brand(store: BrandStore = Depends(get_store)) -> dict:
     return {"brand_id": store.create_brand()}
