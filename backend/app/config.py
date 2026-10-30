@@ -25,7 +25,14 @@ class Settings(BaseSettings):
 
     openrouter_api_key: str = Field(description="Key for OpenRouter, which serves the language model.")
     firecrawl_api_key: str = Field(description="Key for Firecrawl, which reads websites.")
-    model: str = Field(default="anthropic/claude-sonnet-5.5", description="OpenRouter id of the model used by every agent.")
+    scraper_model: str = Field(
+        default="anthropic/claude-sonnet-5.5",
+        description="Model that learns a brand. It runs once per brand, so a smarter, pricier model pays off.",
+    )
+    orchestrator_model: str = Field(
+        default="z-ai/glm-5.3-flash",
+        description="Model that writes and edits the emails. It runs on every message, so a fast, cheap one.",
+    )
     reasoning_effort: Literal["xhigh", "high", "medium", "low", "minimal", "none"] = Field(
         default="low",
         description="How much the model thinks before answering. Less is faster",

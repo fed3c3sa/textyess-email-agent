@@ -5,14 +5,14 @@ from langchain_openrouter import ChatOpenRouter
 from app.config import Settings
 
 
-def build_model(settings: Settings) -> ChatOpenRouter:
-    """The chat model on OpenRouter, with the reasoning, timeout, retries and routing from the settings.
+def build_model(settings: Settings, model: str) -> ChatOpenRouter:
+    """The chat model `model` (an OpenRouter id) with the reasoning, timeout, retries and routing from the settings.
 
     Every parameter sent must be one all the models we use accept, because providers that do
     not support one are skipped (`require_parameters`).
     """
     return ChatOpenRouter(
-        model=settings.model,
+        model=model,
         openrouter_api_key=settings.openrouter_api_key,
         reasoning={"effort": settings.reasoning_effort},
         timeout=settings.model_timeout_seconds * 1000,  # in milliseconds: a stuck call is cut off and retried

@@ -57,7 +57,7 @@ def build_orchestrator(store: BrandStore, settings: Settings, memory: AsyncSqlit
         return orchestrator_prompt(store, settings, brand_id, request.state.get("email") or Email())
 
     return create_agent(
-        model=build_model(settings),
+        model=build_model(settings, settings.orchestrator_model),
         tools=build_orchestrator_tools(store, settings),
         middleware=[prompt],
         state_schema=OrchestratorState,

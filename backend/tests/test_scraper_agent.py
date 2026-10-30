@@ -87,7 +87,7 @@ def test_scrape_brand_prepares_the_pdf_runs_the_agent_and_saves(store, brand_id,
     )
     agent, model = FakeAgent(), FakeModel(result)
     monkeypatch.setattr(scraper_agent, "create_agent", lambda **kwargs: agent)
-    monkeypatch.setattr(scraper_agent, "build_model", lambda settings: model)
+    monkeypatch.setattr(scraper_agent, "build_model", lambda settings, model_id: model)
     settings = Settings(openrouter_api_key="test", firecrawl_api_key="test")
     reports = []
 

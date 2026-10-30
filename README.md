@@ -10,8 +10,8 @@ flowchart TB
     SETUPUI(["<b>Entry 1: Setup screen</b><br/>URL + uploaded docs"])
     CHAT(["<b>Entry 2: Studio chat</b><br/>user messages"])
 
-    SCRAPER{{"<b>3. Brand scraper subagent</b><br/>multimodal model, one run<br/>all images in its first message"}}
-    ORCH{{"<b>Orchestrator agent</b> (LLM)<br/>reads the whole design system<br/>asks the user when information is missing<br/>the user can do everything from chat"}}
+    SCRAPER{{"<b>3. Brand scraper subagent</b><br/>Claude Sonnet 5.5, one run per brand<br/>all images in its first message"}}
+    ORCH{{"<b>Orchestrator agent</b> (GLM 5.3 Flash)<br/>reads the whole design system<br/>asks the user when information is missing<br/>the user can do everything from chat"}}
 
     FSMW["Read-only file tools<br/>deepagents FilesystemMiddleware<br/>search the saved text"]
     WEB["<b>1. Website</b> (Firecrawl)<br/>branding, text, HTML, screenshot, images"]
@@ -81,7 +81,7 @@ flowchart TB
 | API | FastAPI |
 | Streaming transport | SSE over POST (`fastapi.sse.EventSourceResponse`) |
 | Orchestration and state | LangChain + LangGraph, `AsyncSqliteSaver` checkpointer |
-| Models | OpenRouter through `langchain-openrouter` (`ChatOpenRouter`, reports cost per call); start with `z-ai/glm-5.3-flash` for all steps |
+| Models | OpenRouter through `langchain-openrouter` (`ChatOpenRouter`, reports cost per call): `anthropic/claude-sonnet-5.5` learns the brand, `z-ai/glm-5.3-flash` writes the emails. Both are settings in `backend/app/config.py` (`scraper_model`, `orchestrator_model`), also changeable from `.env` (`SCRAPER_MODEL`, `ORCHESTRATOR_MODEL`) |
 | Data models | Pydantic v2 |
 | Website scraping | Firecrawl `scrape` with the `branding`, `markdown`, `rawHtml`, `images` and `screenshot` formats (1 credit per page, no local browser) |
 | PDF | PyMuPDF |
@@ -98,6 +98,7 @@ flowchart TB
 | Chat learning is written to `user_notes[]` only after the user says yes in the chat | One-off requests don't become brand rules; a re-scrape never overwrites notes |
 | The model designs the email freely, as a list of sections `{id, reasoning, content}` it names itself, written with `write_section` (add or replace) and `remove_section`. Only `subject` and `preheader` are fixed ids | No template: the design system is a guideline. Parts stream in one by one, follow-up edits rewrite a part by id, every part carries its reasoning |
 | `reasoning` is written before `content` | The model decides why before it writes the HTML |
+| A smart model learns the brand, a cheap one writes the emails: Claude Sonnet 5.5 for the scraper, GLM 5.3 Flash for the orchestrator. Both can be changed in `config.py` or `.env` | Learning runs once per brand, so the extra cost of a smarter model is paid once and every email benefits from a better design system. Writing runs on every message and edit, so that is where cost adds up. Measured on the same brand: learning costs about $0.07 with Sonnet (once); one email costs about $0.007 with GLM versus about $0.05 with Sonnet, roughly 7x less per email |
 | Email HTML is responsive: fluid tables and images, columns that wrap on a narrow screen | Most marketing email is read on a phone |
 | Undo reads the previous email from the LangGraph checkpoint history | No separate version storage |
 | Website images are used through their original public URL; the downloaded copy is only for the scraper to look at | The reader's email app loads them from the brand's site, so they work in a real inbox |

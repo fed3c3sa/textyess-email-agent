@@ -69,7 +69,7 @@ async def scrape_brand(
     report("Building the design system...")
     message = build_first_message(brand_dir, url, website_summary, store.load(brand_id))
     logger.info("Scraper starts with %d images in its first message", sum(b["type"] == "image" for b in message.content))
-    model = build_model(settings)
+    model = build_model(settings, settings.scraper_model)
     system_prompt = render_system_prompt("scraper_system")
     agent = create_agent(
         model=model,
