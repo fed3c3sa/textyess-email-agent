@@ -4,15 +4,32 @@
 import { useState } from "react";
 
 function escape(text) {
-  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
+// Preview only: hovering a section outlines it and shows why the agent made it that way.
+const WHY_ON_HOVER = `<style>
+[data-why] { position: relative; }
+[data-why]:hover { outline: 2px solid #503adb; outline-offset: -2px; }
+[data-why]:hover::after {
+  content: "Why: " attr(data-why);
+  position: absolute; top: 8px; left: 8px; right: 8px; z-index: 10;
+  padding: 8px 12px; border-radius: 10px;
+  background: rgba(80, 58, 219, 0.95); color: #fff;
+  font: 500 12px/1.45 Inter, system-ui, sans-serif; text-align: left;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  pointer-events: none;
+}
+</style>`;
+
 // The same envelope as the backend's render_email(): the sections in a centered 600px column.
-export function emailHtml(sections) {
+// With `whyOnHover`, each section is wrapped so hovering it shows its reasoning (preview only:
+// the HTML to send stays clean).
+export function emailHtml(sections, whyOnHover = false) {
   const text = (id) => sections.find((s) => s.id === id)?.content ?? "";
   const body = sections
     .filter((s) => s.id !== "subject" && s.id !== "preheader")
-    .map((s) => s.content)
+    .map((s) => (whyOnHover ? `<div data-why="${escape(s.reasoning)}">${s.content}</div>` : s.content))
     .join("\n");
   return `<!DOCTYPE html>
 <html>
@@ -20,6 +37,7 @@ export function emailHtml(sections) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escape(text("subject"))}</title>
+${whyOnHover ? WHY_ON_HOVER : ""}
 </head>
 <body style="margin:0; padding:0;">
 <div style="display:none; max-height:0; overflow:hidden;">${escape(text("preheader"))}</div>
@@ -35,7 +53,8 @@ ${body}
 export default function EmailPreview({ sections, selected, onSelect }) {
   const [tab, setTab] = useState("preview");
   const subject = sections.find((s) => s.id === "subject");
-  const html = emailHtml(sections);
+  const html = emailHtml(sections); // what a person sends: shown in the HTML tab
+  const preview = emailHtml(sections, true); // the same, plus the reasoning on hover
 
   return (
     <section className="card preview">
@@ -55,7 +74,7 @@ export default function EmailPreview({ sections, selected, onSelect }) {
 
       {tab === "preview" ? (
         <div className="frame">
-          {sections.length ? <iframe title="Email preview" srcDoc={html} /> : <p className="muted empty">The email appears here, part by part.</p>}
+          {sections.length ? <iframe title="Email preview" srcDoc={preview} /> : <p className="muted empty">The email appears here, part by part.</p>}
         </div>
       ) : (
         <pre className="code">{html}</pre>
