@@ -435,14 +435,15 @@ The evaluation can run as a testing step: a smoke test of 3 cases on every chang
 
 **Time spent: about 10 hours.** Model cost of building and testing: a few dollars on OpenRouter, and a few Firecrawl credits.
 
-1. **Chose the stack.**
-2. **Drew the architecture by hand**, on paper ✏️🤓, then turned the drawing into a readable graph (the one in [Architecture](#3-architecture)).
-3. **Analyzed the flow** and asked whether it was the best one, then iterated until I found the backend architecture I wanted. This was the biggest part of the job.
-4. **Planned with Claude Code in plan mode**, then reviewed the plan.
-5. **Built the backend one module at a time**, starting from the Pydantic models. Every assumption about a library was checked against its docs and the installed package before writing the code.
-6. **Tested the agentic part with real cases** (real brands, real websites, PDFs, pasted emails) and validated it before going on. The models were picked here, from measured cost and quality: Sonnet to learn the brand, GLM to write.
-7. **Built the API around the agents**, and tested it.
-8. **Built the frontend**, and iterated on it until the current UI.
-9. **Ran a self-testing and improving loop with Claude** to find bugs and edge cases, and fixed them (for example the merged `subject_preheader` part; the scraper's JSON leaking into the chat is fixed on the v3 branch).
-10. **Summarized every choice and wrote this README**, with real cases: two brands, screenshots, measured costs and times.
-11. **Extra:** tried LangGraph's new event streaming (`astream_events(version="v3")`, still experimental) on the [`try-v3-streaming`](https://github.com/fed3c3sa/textyess-email-agent/tree/try-v3-streaming) branch.
+1. Chose the stack.
+2. Drafted the graph by hand, on paper ✏️🤓.
+3. Turned the graph into a readable graph, analyzed the flow well, and decided if it was the best.
+4. Iterated until I found the best architecture for the backend (this was the biggest part of the job).
+5. After deciding the architecture, started planning with Claude in plan mode, and reviewed the plan.
+6. Implemented the backend one module at a time, starting from the Pydantic models.
+7. When the agentic infra was ready, tested it with real cases and validated it.
+8. Built the API around the agentic infra, and tested it.
+9. Built the frontend, and iterated on it to reach the current UI.
+10. Ran a self-testing and improving loop using Claude to spot bugs and edge cases, and fixed them.
+11. Summarized all the choices made and compiled the README, then added real cases to it.
+12. Extra: tried the new event streaming of LangGraph, which is experimental, on the [`try-v3-streaming`](https://github.com/fed3c3sa/textyess-email-agent/tree/try-v3-streaming) branch.
