@@ -27,6 +27,17 @@ class MessageEvent(BaseModel):
     text: str
 
 
+class SectionDraftEvent(BaseModel):
+    """A section the model has just finished writing, sent before its tool runs.
+
+    The tool then confirms it with section_added or section_updated (same id), so the
+    preview shows each part as soon as it is written, even when the model writes many at once.
+    """
+
+    type: Literal["section_draft"] = "section_draft"
+    section: Section
+
+
 class SectionAddedEvent(BaseModel):
     """A new section was added to the email."""
 
@@ -84,6 +95,7 @@ class ErrorEvent(BaseModel):
 StreamEvent = Annotated[
     StatusEvent
     | MessageEvent
+    | SectionDraftEvent
     | SectionAddedEvent
     | SectionUpdatedEvent
     | SectionRemovedEvent
