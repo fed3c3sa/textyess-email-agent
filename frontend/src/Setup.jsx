@@ -3,8 +3,20 @@
 // and the conflicts between the website and the documents.
 
 import { useEffect, useState } from "react";
-import { createBrand, getDesignSystem, learnBrand, uploadFiles } from "./api.js";
+import { assetUrl, createBrand, getDesignSystem, learnBrand, uploadFiles } from "./api.js";
 import DesignSystem from "./DesignSystem.jsx";
+
+// Downloads the design system as a JSON file, to reuse in any other AI agent.
+// Image pointers become full URLs, so they open outside this app (while the API runs).
+function exportJson(brandId, designSystem) {
+  const assets = designSystem.assets.map((asset) => ({ ...asset, pointer: assetUrl(brandId, asset.pointer) }));
+  const json = JSON.stringify({ ...designSystem, assets }, null, 2);
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(new Blob([json], { type: "application/json" }));
+  link.download = `${designSystem.identity.name || brandId}-design-system.json`;
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
 
 export default function Setup({ brandId, onBrand, onLearned, onOpenStudio }) {
   const [url, setUrl] = useState("");
@@ -112,9 +124,14 @@ export default function Setup({ brandId, onBrand, onLearned, onOpenStudio }) {
         <>
           <div className="row">
             <h1>Design system</h1>
-            <button className="primary" onClick={onOpenStudio}>
-              Open the Studio
-            </button>
+            <div className="actions">
+              <button className="secondary" onClick={() => exportJson(brandId, designSystem)}>
+                Export JSON
+              </button>
+              <button className="primary" onClick={onOpenStudio}>
+                Open the Studio
+              </button>
+            </div>
           </div>
           <DesignSystem brandId={brandId} designSystem={designSystem} />
         </>
