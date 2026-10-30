@@ -103,13 +103,13 @@ openrouter.ai shows its dark theme only when the browser asks for it, so Firecra
 
 ### What I cut
 
-- **Undo** and **reloading a past chat**: the state is saved (LangGraph checkpoints), the UI to use it is not built.
-- **Editing the design system on the Setup screen**: the API exists (`PATCH /brands/{id}`) and the chat can correct the brand; there is no form.
-- **The render-and-look loop** (stretch: screenshot the email, check it against the brand, fix it).
-- **Sending a test email** to a real inbox.
-- **Character-by-character streaming** of each part: parts appear whole, one by one, which is what "part by part" asks for.
-- **Crawling more than one page** of a website: the home page is usually where the brand shows most.
-- Auth, billing, deployment, as the brief asks.
+- **Undo** and **reloading a past chat**: the state is already saved after every step (LangGraph checkpoints), so both are UI work on top of it.
+- **A form to edit the design system on Setup**: the chat already corrects the brand ("our main color is blue"), and the API a form would use exists (`PATCH /brands/{id}`).
+- **The render-and-look loop** (screenshot the email, check it against the brand, fix it): it adds a vision call and a fix round to every email; first measure how often the email is off-brand.
+- **Sending a test email**: the HTML tab gives the exact HTML to send.
+- **Character-by-character streaming** of each part: parts appear whole, one by one, because a half-written part is broken HTML in the preview.
+- **Crawling more than one page** of a website: the home page is usually where the brand shows most, and every page costs a Firecrawl credit and model context.
+- **Auth, billing, deployment**: the app runs locally, for one user.
 
 ---
 
