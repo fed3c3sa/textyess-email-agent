@@ -40,6 +40,12 @@ class BrandStore:
         logger.info("Brand %s created", brand_id)
         return brand_id
 
+    def list_brands(self) -> list[tuple[str, str | None]]:
+        """Every brand as (brand_id, name), the most recently changed first. The name is None until learned."""
+        folders = [f for f in self._brands.iterdir() if f.is_dir() and BRAND_ID_PATTERN.fullmatch(f.name)]
+        folders.sort(key=lambda folder: folder.stat().st_mtime, reverse=True)
+        return [(f.name, (self.load(f.name) or DesignSystem()).identity.name) for f in folders]
+
     def brand_dir(self, brand_id: str) -> Path:
         """Folder of a brand. Raises if the id is not a known brand.
 
