@@ -38,6 +38,7 @@ async function* readEvents(path, body) {
   }
 }
 
+export const listBrands = () => request("GET", "/brands");
 export const createBrand = () => request("POST", "/brands");
 export const getDesignSystem = (brandId) => request("GET", `/brands/${brandId}`);
 export const createSession = (brandId) => request("POST", `/brands/${brandId}/sessions`);
@@ -53,10 +54,11 @@ export async function uploadFiles(brandId, files) {
 
 export const learnBrand = (brandId, url) => readEvents(`/brands/${brandId}/learn`, { url: url || null });
 
-export const sendMessage = (brandId, sessionId, text, selectedSection) =>
+export const sendMessage = (brandId, sessionId, text, selectedSection, files = []) =>
   readEvents(`/brands/${brandId}/sessions/${sessionId}/messages`, {
     text,
     selected_section: selectedSection || null,
+    files, // names returned by uploadFiles
   });
 
 // An asset pointer is a public URL, or a path in the brand folder ('/assets/logo.png').

@@ -4,8 +4,15 @@
 // the first message creates them, so the user can start straight from the chat.
 
 import { useEffect, useRef, useState } from "react";
-import { createBrand, createSession, getEmail, sendMessage } from "./api.js";
+import { createBrand, createSession, getEmail, sendMessage, uploadFiles } from "./api.js";
+import { Icon } from "./App.jsx";
 import EmailPreview from "./EmailPreview.jsx";
+
+const EXAMPLES = [
+  "Black Friday email, 20% off, make it feel urgent",
+  "Welcome email for new customers",
+  "Announce our new collection",
+];
 
 // The sections with `section` written in at `index`, replacing the one with the same id.
 function placeSection(sections, section, index) {
@@ -16,6 +23,10 @@ function placeSection(sections, section, index) {
 function Reply({ reply, working }) {
   return (
     <div className="reply">
+      <span className="avatar">
+        <Icon name="studio" />
+      </span>
+      <div className="reply-body">
       {reply.status.map((line, index) => (
         <p className="status" key={index}>
           {line}
@@ -38,6 +49,7 @@ function Reply({ reply, working }) {
       {working && <p className="typing">Writing</p>}
       {reply.error && <p className="error">{reply.error}</p>}
       {reply.meta && <p className="meta">{reply.meta}</p>}
+      </div>
     </div>
   );
 }
@@ -47,6 +59,7 @@ export default function Studio({ brandId, sessionId, onBrand, onSession, onLearn
   const [sections, setSections] = useState([]); // the current email
   const [selected, setSelected] = useState(null); // the section the next message is about
   const [input, setInput] = useState("");
+  const [files, setFiles] = useState([]); // images and PDFs to attach to the next message
   const [busy, setBusy] = useState(false);
   const bottom = useRef(null);
 
@@ -71,6 +84,13 @@ export default function Studio({ brandId, sessionId, onBrand, onSession, onLearn
       case "status":
         updateReply((reply) => ({ ...reply, status: [...reply.status, event.text] }));
         break;
+      case "section_draft": // written by the model, its tool confirms it a moment later
+        setSections((list) =>
+          list.some((s) => s.id === event.section.id)
+            ? list.map((s) => (s.id === event.section.id ? event.section : s))
+            : [...list, event.section],
+        );
+        break;
       case "section_added":
       case "section_updated":
         setSections((list) => placeSection(list, event.section, event.index));
@@ -92,15 +112,17 @@ export default function Studio({ brandId, sessionId, onBrand, onSession, onLearn
     }
   }
 
-  async function send(formEvent) {
-    formEvent.preventDefault();
-    const text = input.trim();
+  async function send(formEvent, example) {
+    formEvent?.preventDefault();
+    const text = (example ?? input).trim();
     if (!text || busy) return;
+    const attached = files;
     setInput("");
+    setFiles([]);
     setBusy(true);
     setMessages((list) => [
       ...list,
-      { role: "user", text, section: selected },
+      { role: "user", text, section: selected, files: attached.map((file) => file.name) },
       { role: "agent", text: "", status: [], steps: [] },
     ]);
     try {
@@ -108,7 +130,8 @@ export default function Studio({ brandId, sessionId, onBrand, onSession, onLearn
       if (!brandId) onBrand(brand);
       const session = sessionId ?? (await createSession(brand)).session_id;
       if (!sessionId) onSession(session);
-      for await (const event of sendMessage(brand, session, text, selected)) handle(event);
+      const uploaded = attached.length ? (await uploadFiles(brand, attached)).files : [];
+      for await (const event of sendMessage(brand, session, text, selected, uploaded)) handle(event);
     } catch (failure) {
       updateReply((reply) => ({ ...reply, error: failure.message }));
     }
@@ -121,15 +144,29 @@ export default function Studio({ brandId, sessionId, onBrand, onSession, onLearn
       <section className="card chat">
         <div className="messages">
           {messages.length === 0 && (
-            <p className="muted empty">
-              Describe the email you want, e.g. “Black Friday email, 20% off, make it feel urgent”.
-            </p>
+            <div className="welcome">
+              <span className="avatar big">
+                <Icon name="studio" />
+              </span>
+              <h2>What email do you need?</h2>
+              <p className="muted">Describe it, and watch it appear on the right, part by part.</p>
+              {EXAMPLES.map((example) => (
+                <button key={example} className="example" onClick={() => send(null, example)}>
+                  {example}
+                </button>
+              ))}
+            </div>
           )}
           {messages.map((message, index) =>
             message.role === "user" ? (
               <div className="bubble" key={index}>
                 {message.section && <span className="chip">{message.section}</span>}
                 {message.text}
+                {message.files?.map((name) => (
+                  <span className="file-chip" key={name}>
+                    {name}
+                  </span>
+                ))}
               </div>
             ) : (
               <Reply key={index} reply={message} working={busy && index === messages.length - 1} />
@@ -147,8 +184,32 @@ export default function Studio({ brandId, sessionId, onBrand, onSession, onLearn
               </button>
             </p>
           )}
+          {files.length > 0 && (
+            <p className="attached">
+              {files.map((file) => (
+                <span className="file-chip" key={file.name}>
+                  {file.name}
+                  <button type="button" onClick={() => setFiles((list) => list.filter((f) => f !== file))}>
+                    ×
+                  </button>
+                </span>
+              ))}
+            </p>
+          )}
           <div className="input-row">
-            <input placeholder="Write a message..." value={input} onChange={(e) => setInput(e.target.value)} />
+            <label className="attach" title="Attach images or PDFs">
+              <Icon name="attach" />
+              <input
+                type="file"
+                multiple
+                accept="image/*,.pdf"
+                onChange={(e) => {
+                  setFiles((list) => [...list, ...e.target.files]);
+                  e.target.value = ""; // lets the same file be picked again
+                }}
+              />
+            </label>
+            <input placeholder="Write a message, or attach an image or a PDF..." value={input} onChange={(e) => setInput(e.target.value)} />
             <button className="primary" disabled={busy || !input.trim()}>
               Send
             </button>
