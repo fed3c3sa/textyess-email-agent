@@ -49,6 +49,15 @@ def put_section(email: Email, section: Section, position: int | None) -> tuple[E
     return Email(sections=sections), position
 
 
+def mixes_subject_and_preheader(section_id: str) -> bool:
+    """True for ids like 'subject_preheader': the renderer only knows 'subject' and 'preheader' exactly.
+
+    Such a part would leave the email with no subject and show "Subject: ..." as visible text.
+    """
+    lowered = section_id.lower()
+    return section_id not in ("subject", "preheader") and ("subject" in lowered or "preheader" in lowered)
+
+
 def drop_section(email: Email, section_id: str) -> Email:
     """The email without the section `section_id`. An unknown id changes nothing."""
     return Email(sections=[s for s in email.sections if s.id != section_id])
@@ -84,12 +93,12 @@ def build_orchestrator_tools(store: BrandStore, settings: Settings) -> list[Base
     @tool(parse_docstring=True)
     def write_section(
         section_id: str, reasoning: str, content: str, runtime: ToolRuntime[OrchestratorContext], position: int | None = None
-    ) -> Command:
+    ) -> Command | str:
         """Write one part of the email: add it, or replace it if a part with this id exists.
 
         The email is a list of parts, top to bottom, which the user sees in a preview.
-        The parts 'subject' and 'preheader' are the subject line and the preview text,
-        as plain text. Every other part is email HTML with inline CSS.
+        The parts 'subject' and 'preheader' are the subject line and the preview text:
+        two separate parts, as plain text. Every other part is email HTML with inline CSS.
 
         Args:
             section_id: Short name of the part, e.g. 'subject', 'hero', 'products'. Reuse an id to replace that part.
@@ -97,6 +106,12 @@ def build_orchestrator_tools(store: BrandStore, settings: Settings) -> list[Base
             content: Plain text for 'subject' and 'preheader'; HTML with inline CSS for every other part.
             position: Where the part goes, counting from 0. Leave it empty to keep a part where it is, or to add a new part at the end.
         """
+        if mixes_subject_and_preheader(section_id):
+            logger.warning("The agent tried to write the section %r", section_id)
+            return (
+                f"Not written: '{section_id}' is not a valid id. The subject line and the preview text are two "
+                "separate parts with exactly the ids 'subject' and 'preheader', as plain text: write them in two calls."
+            )
         email = runtime.state.get("email") or Email()
         exists = any(s.id == section_id for s in email.sections)
         section = Section(id=section_id, reasoning=reasoning, content=content)

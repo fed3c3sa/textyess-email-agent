@@ -106,6 +106,16 @@ def test_write_section_starts_an_email_from_nothing(tools, brand_id):
     assert events[0]["type"] == "section_added"
 
 
+def test_write_section_refuses_subject_and_preheader_in_one_part(tools, brand_id):
+    """The bug of a real run: 'subject_preheader' left the email with no subject."""
+    events = []
+    answer = tools["write_section"].func(
+        section_id="subject_preheader", reasoning="r", content="Subject: Hi", runtime=fake_runtime(brand_id, EMAIL, events)
+    )
+    assert "'subject' and 'preheader'" in answer
+    assert events == []
+
+
 def test_remove_section_explains_an_unknown_id(tools, brand_id):
     answer = tools["remove_section"].func(section_id="cta", runtime=fake_runtime(brand_id, EMAIL))
     assert answer == "There is no section 'cta'. Sections: subject, hero, footer."

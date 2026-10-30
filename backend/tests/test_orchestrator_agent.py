@@ -129,6 +129,11 @@ def test_a_section_is_drafted_as_soon_as_its_arguments_are_complete():
     assert [s.id for s in again] == ["cta"]  # the next call in the same answer
 
 
+def test_a_refused_section_is_never_drafted():
+    merged = '{"section_id": "subject_preheader", "reasoning": "r", "content": "Subject: Hi"}'
+    assert drafted_sections(pieces((0, "write_section", merged)), {}) == []
+
+
 def test_a_plain_message_is_just_text(store, brand_id):
     assert user_message(store, SETTINGS, brand_id, "Hello").content == "Hello"
     assert user_message(store, SETTINGS, brand_id, "Shorter", "hero").content.startswith("<selected_section>hero</selected_section>")

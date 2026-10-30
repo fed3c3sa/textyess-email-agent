@@ -24,7 +24,12 @@ from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from app.config import Settings
 from app.agentic_infra.agents.scraper.sources import prepare_pdf
 from app.agentic_infra.shared.images import IMAGE_SUFFIXES, labelled_image_blocks
-from app.agentic_infra.agents.orchestrator.tools import OrchestratorContext, OrchestratorState, build_orchestrator_tools
+from app.agentic_infra.agents.orchestrator.tools import (
+    OrchestratorContext,
+    OrchestratorState,
+    build_orchestrator_tools,
+    mixes_subject_and_preheader,
+)
 from app.agentic_infra.shared.model import build_model
 from app.agentic_infra.prompts import render_system_prompt
 from app.schemas.design_system import DesignSystem
@@ -190,6 +195,7 @@ def drafted_sections(token: AIMessageChunk, drafts: dict) -> list[Section]:
         except (json.JSONDecodeError, KeyError, TypeError):
             continue  # not complete yet
         call["sent"] = True
-        finished.append(section)
+        if not mixes_subject_and_preheader(section.id):  # the tool refuses it, so it never shows
+            finished.append(section)
     return finished
 
