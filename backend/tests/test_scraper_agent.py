@@ -1,15 +1,11 @@
 """The scraper's flow, tested without a model: a fake agent stands in for create_agent."""
 
 import asyncio
-import base64
-import io
 
-from PIL import Image
-
-from app.config import MAX_IMAGE_WIDTH, MAX_IMAGES_TO_MODEL, Settings
+from app.config import MAX_IMAGES_TO_MODEL, Settings
 from app.schemas.design_system import Conflict, DesignSystem, Identity, ScrapeResult
 from app.agentic_infra.agents.scraper import agent as scraper_agent
-from app.agentic_infra.agents.scraper.agent import build_first_message, image_block, scrape_brand
+from app.agentic_infra.agents.scraper.agent import build_first_message, scrape_brand
 from tests.conftest import make_pdf, png
 
 
@@ -48,23 +44,6 @@ def test_first_message_carries_what_we_already_know(brand_dir):
     assert '"name": "Acme"' in message.content[0]["text"]
 
 
-def test_wide_images_are_shrunk(tmp_path):
-    path = tmp_path / "wide.png"
-    path.write_bytes(png(3000, 1000))
-
-    block = image_block(path)
-
-    width = Image.open(io.BytesIO(base64.b64decode(block["base64"]))).width
-    assert width <= MAX_IMAGE_WIDTH
-
-
-def test_webp_images_are_read(tmp_path):
-    """Many shops serve their images as WebP."""
-    path = tmp_path / "photo.webp"
-    Image.new("RGB", (50, 50), "red").save(path, format="WEBP")
-    assert image_block(path)["mime_type"] == "image/png"
-
-
 def test_first_message_stops_at_the_image_limit(brand_dir):
     for number in range(MAX_IMAGES_TO_MODEL + 5):
         (brand_dir / "assets" / f"image-{number:02d}.png").write_bytes(png(10, 10))
@@ -72,12 +51,6 @@ def test_first_message_stops_at_the_image_limit(brand_dir):
     message = build_first_message(brand_dir, None, "No website was given.", None)
 
     assert len(labels(message)) == MAX_IMAGES_TO_MODEL
-
-
-def test_a_broken_image_is_skipped(tmp_path):
-    path = tmp_path / "broken.png"
-    path.write_bytes(b"not an image")
-    assert image_block(path) is None
 
 
 class FakeAgent:

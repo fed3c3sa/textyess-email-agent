@@ -22,6 +22,8 @@ from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 from app.config import Settings
+from app.agentic_infra.agents.scraper.sources import prepare_pdf
+from app.agentic_infra.images import IMAGE_SUFFIXES, labelled_image_blocks
 from app.agentic_infra.agents.orchestrator.tools import OrchestratorContext, OrchestratorState, build_orchestrator_tools
 from app.agentic_infra.model import build_model
 from app.agentic_infra.prompts import render_system_prompt
@@ -86,27 +88,58 @@ def with_asset_urls(design_system: DesignSystem, brand_id: str, public_url: str)
     return design_system.model_copy(update={"assets": assets})
 
 
-async def stream_turn(
-    agent, session_id: str, brand_id: str, text: str, selected_section: str | None = None
-) -> AsyncIterator[dict]:
-    """Run one user message and yield its events as dicts.
+def user_message(
+    store: BrandStore,
+    settings: Settings,
+    brand_id: str,
+    text: str,
+    selected_section: str | None = None,
+    files: list[str] = (),
+) -> HumanMessage:
+    """The user's chat message for the model: the text, the selected section, and the attached files.
+
+    `files` are names in the brand's uploads/. Images and the pages of PDFs are attached as
+    images, so the model sees them. Each usable image is listed with its URL, so the model
+    can put it in the email.
+    """
+    if selected_section:
+        text = f"<selected_section>{selected_section}</selected_section>\n{text}"
+    if not files:
+        return HumanMessage(text)
+
+    brand_dir = store.brand_dir(brand_id)
+    files_url = f"{settings.public_url}/brands/{brand_id}/files"
+    lines = [text, "", "Files the user attached to this message:"]
+    images = []  # what the model will see
+    for name in files:
+        path = brand_dir / "uploads" / Path(name).name
+        if path.suffix.lower() == ".pdf":
+            pdf = prepare_pdf(path, brand_dir / "raw", brand_dir / "assets")
+            images += [brand_dir / "raw" / page for page in pdf.page_images]
+            lines.append(f"- {path.name}: a PDF, its pages are shown below.")
+            lines += [f"  - image found inside it, usable in the email: {files_url}/assets/{f}" for f in pdf.image_files]
+        elif path.suffix.lower() in IMAGE_SUFFIXES:
+            images.append(path)
+            lines.append(f"- {path.name}: shown below, usable in the email: {files_url}/uploads/{path.name}")
+
+    blocks = labelled_image_blocks([(image.name, image) for image in images])
+    return HumanMessage(content=[{"type": "text", "text": "\n".join(lines)}, *blocks])
+
+
+async def stream_turn(agent, session_id: str, brand_id: str, message: HumanMessage) -> AsyncIterator[dict]:
+    """Run one user message (see user_message) and yield its events as dicts.
 
     While the agent works: 'message' (chat text), 'status' and section events.
     At the end: 'email_replaced' with the final email, so the preview is always
     right even after parallel tool calls, then 'done'. On failure: 'error'.
     """
-    if selected_section:
-        text = f"<selected_section>{selected_section}</selected_section>\n{text}"
     config = {"configurable": {"thread_id": session_id}}
     start, cost = time.time(), 0.0
     drafts: dict = {}  # the tool calls the model is writing, see drafted_sections
-    logger.info(
-        "Turn started: session %s, brand %s, message of %d characters%s",
-        session_id, brand_id, len(text), f", about section {selected_section!r}" if selected_section else "",
-    )
+    logger.info("Turn started: session %s, brand %s, message of %d characters", session_id, brand_id, len(message.text))
     try:
         async for chunk in agent.astream(
-            {"messages": [HumanMessage(text)]},
+            {"messages": [message]},
             config=config,
             context=OrchestratorContext(brand_id=brand_id),
             stream_mode=["messages", "custom"],

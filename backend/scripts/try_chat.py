@@ -13,7 +13,7 @@ import asyncio
 from uuid import uuid4
 
 from app.config import Settings, configure_logging
-from app.agentic_infra.agents.orchestrator.agent import build_orchestrator, open_memory, stream_turn
+from app.agentic_infra.agents.orchestrator.agent import build_orchestrator, open_memory, stream_turn, user_message
 from app.render import render_email
 from app.schemas.email import Email
 from app.storage.brands import BrandStore
@@ -58,7 +58,8 @@ async def main(brand_id: str | None) -> None:
             if text.startswith("@"):
                 selected_section, _, text = text[1:].partition(" ")
             print("agent> ", end="")
-            async for event in stream_turn(agent, session_id, brand_id, text, selected_section):
+            message = user_message(store, settings, brand_id, text, selected_section)
+            async for event in stream_turn(agent, session_id, brand_id, message):
                 show(event)
                 if event["type"] == "email_replaced":
                     page.write_text(render_email(Email.model_validate(event["email"])))

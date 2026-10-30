@@ -12,8 +12,6 @@ The steps run in order:
 """
 
 import logging
-import base64
-import io
 from collections.abc import Callable
 from pathlib import Path
 
@@ -25,9 +23,9 @@ from langchain.agents import create_agent
 from langchain.agents.middleware import ModelCallLimitMiddleware
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.messages import HumanMessage
-from PIL import Image
 
-from app.config import MAX_IMAGE_WIDTH, MAX_IMAGES_TO_MODEL, SCRAPER_MAX_MODEL_CALLS, Settings
+from app.config import SCRAPER_MAX_MODEL_CALLS, Settings
+from app.agentic_infra.images import labelled_image_blocks
 from app.agentic_infra.model import build_model
 from app.agentic_infra.prompts import render_system_prompt, render_text
 from app.schemas.design_system import DesignSystem, ScrapeResult
@@ -38,7 +36,6 @@ logger = logging.getLogger(__name__)
 
 READ_ONLY_FILE_TOOLS = ["ls", "read_file", "glob", "grep"]
 IMAGE_FOLDERS = ("raw", "uploads", "assets")  # the order the images appear in the message
-IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp", ".gif"}  # SVG is left out: models cannot see it
 
 
 async def scrape_brand(
@@ -117,32 +114,9 @@ def build_first_message(
         current_design_system=current.model_dump_json(indent=2) if current else "Nothing yet.",
     )
 
-    content = [{"type": "text", "text": text}]
-    images_added = 0
-    for folder in IMAGE_FOLDERS:
-        for path in sorted((brand_dir / folder).iterdir()):
-            if images_added == MAX_IMAGES_TO_MODEL:
-                return HumanMessage(content=content)
-            if path.suffix.lower() not in IMAGE_SUFFIXES:
-                continue
-            block = image_block(path)
-            if block:
-                content.append({"type": "text", "text": f"/{folder}/{path.name}:"})
-                content.append(block)
-                images_added += 1
-    return HumanMessage(content=content)
-
-
-def image_block(path: Path) -> dict | None:
-    """The image as a PNG content block, at most MAX_IMAGE_WIDTH wide. None if it cannot be read."""
-    try:
-        image = Image.open(path)
-        image.thumbnail((MAX_IMAGE_WIDTH, MAX_IMAGE_WIDTH * 10))  # shrinks, keeping the proportions
-        if image.mode not in ("RGB", "RGBA"):  # e.g. CMYK or a palette
-            image = image.convert("RGBA")
-        buffer = io.BytesIO()
-        image.save(buffer, format="PNG")
-    except Exception:
-        return None
-    data = base64.b64encode(buffer.getvalue()).decode()
-    return {"type": "image", "base64": data, "mime_type": "image/png"}
+    images = [
+        (f"/{folder}/{path.name}", path)  # labelled with the path the file tools use
+        for folder in IMAGE_FOLDERS
+        for path in sorted((brand_dir / folder).iterdir())
+    ]
+    return HumanMessage(content=[{"type": "text", "text": text}, *labelled_image_blocks(images)])

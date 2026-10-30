@@ -25,3 +25,6 @@ class ChatMessage(BaseModel):
     selected_section: str | None = Field(
         default=None, description="Id of the section the user clicked in the preview, if any."
     )
+    files: list[str] = Field(
+        default_factory=list, description="Names of files uploaded to the brand for this message (images, PDFs)."
+    )

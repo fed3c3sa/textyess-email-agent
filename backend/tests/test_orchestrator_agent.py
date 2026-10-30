@@ -3,7 +3,7 @@
 import asyncio
 from types import SimpleNamespace
 
-from langchain_core.messages import AIMessageChunk
+from langchain_core.messages import AIMessageChunk, HumanMessage
 from langgraph.graph import END, START, StateGraph
 
 from app.config import Settings
@@ -13,11 +13,13 @@ from app.agentic_infra.agents.orchestrator.agent import (
     open_memory,
     orchestrator_prompt,
     stream_turn,
+    user_message,
     with_asset_urls,
 )
 from app.agentic_infra.agents.orchestrator.tools import OrchestratorState
 from app.schemas.design_system import Asset, DesignSystem, Identity
 from app.schemas.email import Email, Section
+from tests.conftest import make_pdf, png
 
 SETTINGS = Settings(openrouter_api_key="test", firecrawl_api_key="test")
 
@@ -94,7 +96,7 @@ def test_stream_turn_passes_tool_events_and_only_the_orchestrators_words():
     )
 
     async def run():
-        return [event async for event in stream_turn(agent, "s1", "b1", "Hello")]
+        return [event async for event in stream_turn(agent, "s1", "b1", HumanMessage("Hello"))]
 
     events = asyncio.run(run())
 
@@ -125,4 +127,27 @@ def test_a_section_is_drafted_as_soon_as_its_arguments_are_complete():
     assert first == [] and second == []  # not valid JSON yet
     assert [s.id for s in third] == ["hero"]  # complete; remove_section is not a draft
     assert [s.id for s in again] == ["cta"]  # the next call in the same answer
+
+
+def test_a_plain_message_is_just_text(store, brand_id):
+    assert user_message(store, SETTINGS, brand_id, "Hello").content == "Hello"
+    assert user_message(store, SETTINGS, brand_id, "Shorter", "hero").content.startswith("<selected_section>hero</selected_section>")
+
+
+def test_an_attached_image_is_shown_to_the_model_with_its_url(store, brand_id, brand_dir):
+    (brand_dir / "uploads" / "shoe.png").write_bytes(png(10, 10))
+
+    message = user_message(store, SETTINGS, brand_id, "Use this in the hero", files=["shoe.png"])
+
+    assert f"http://localhost:8000/brands/{brand_id}/files/uploads/shoe.png" in message.content[0]["text"]
+    assert [block["type"] for block in message.content] == ["text", "text", "image"]
+
+
+def test_an_attached_pdf_shows_its_pages_and_lists_its_images(store, brand_id, brand_dir):
+    make_pdf(brand_dir / "uploads" / "promo.pdf", pages=2)
+
+    message = user_message(store, SETTINGS, brand_id, "Follow this brief", files=["promo.pdf"])
+
+    assert "/files/assets/promo-1.png" in message.content[0]["text"]  # the logo inside the PDF
+    assert sum(block["type"] == "image" for block in message.content) == 2  # one per page
 
