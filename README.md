@@ -436,14 +436,15 @@ The evaluation can run as a testing step: a smoke test of 3 cases on every chang
 **Time spent: about 10 hours.** Model cost of building and testing: a few dollars on OpenRouter, and a few Firecrawl credits.
 
 1. Chose the stack.
-2. Drafted the graph by hand, on paper ✏️🤓.
-3. Turned the graph into a readable graph, analyzed the flow well, and decided if it was the best.
-4. Iterated until I found the best architecture for the backend (this was the biggest part of the job).
-5. After deciding the architecture, started planning with Claude in plan mode, and reviewed the plan.
-6. Implemented the backend one module at a time, starting from the Pydantic models.
-7. When the agentic infra was ready, tested it with real cases and validated it.
-8. Built the API around the agentic infra, and tested it.
-9. Built the frontend, and iterated on it to reach the current UI.
-10. Ran a self-testing and improving loop using Claude to spot bugs and edge cases, and fixed them.
-11. Summarized all the choices made and compiled the README, then added real cases to it.
-12. Extra: tried the new event streaming of LangGraph, which is experimental, on the [`try-v3-streaming`](https://github.com/fed3c3sa/textyess-email-agent/tree/try-v3-streaming) branch.
+2. Read up on Firecrawl's branding feature, which gives a website's colors, fonts and logo.
+3. Drafted the graph by hand, on paper ✏️🤓.
+4. Turned the graph into a readable graph, analyzed the flow well, and decided if it was the best.
+5. Iterated until I found the best architecture for the backend (this was the biggest part of the job).
+6. After deciding the architecture, started planning with Claude in plan mode, and reviewed the plan.
+7. Implemented the backend one module at a time, starting from the Pydantic models.
+8. When the agentic infra was ready, tested it with real cases and validated it.
+9. Built the API around the agentic infra, and tested it.
+10. Built the frontend, and iterated on it to reach the current UI.
+11. Ran a self-testing and improving loop using Claude to spot bugs and edge cases, and fixed them.
+12. Summarized all the choices made and compiled the README, then added real cases to it.
+13. Extra: tried the new event streaming of LangGraph, which is experimental, on the [`try-v3-streaming`](https://github.com/fed3c3sa/textyess-email-agent/tree/try-v3-streaming) branch.
