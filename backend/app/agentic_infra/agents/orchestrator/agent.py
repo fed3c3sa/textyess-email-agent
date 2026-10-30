@@ -7,6 +7,7 @@ and yields the events the UI needs: chat text, sections and progress while the a
 works, then the final email, the cost and the time of the turn.
 """
 
+import json
 import logging
 import time
 from collections.abc import AsyncGenerator, AsyncIterator
@@ -25,8 +26,8 @@ from app.agentic_infra.agents.orchestrator.tools import OrchestratorContext, Orc
 from app.agentic_infra.model import build_model
 from app.agentic_infra.prompts import render_system_prompt
 from app.schemas.design_system import DesignSystem
-from app.schemas.email import Email
-from app.schemas.events import DoneEvent, EmailReplacedEvent, ErrorEvent, MessageEvent
+from app.schemas.email import Email, Section
+from app.schemas.events import DoneEvent, EmailReplacedEvent, ErrorEvent, MessageEvent, SectionDraftEvent
 from app.storage.brands import BrandStore
 
 logger = logging.getLogger(__name__)
@@ -98,6 +99,7 @@ async def stream_turn(
         text = f"<selected_section>{selected_section}</selected_section>\n{text}"
     config = {"configurable": {"thread_id": session_id}}
     start, cost = time.time(), 0.0
+    drafts: dict = {}  # the tool calls the model is writing, see drafted_sections
     logger.info(
         "Turn started: session %s, brand %s, message of %d characters%s",
         session_id, brand_id, len(text), f", about section {selected_section!r}" if selected_section else "",
@@ -117,8 +119,12 @@ async def stream_turn(
             if not isinstance(token, AIMessageChunk):
                 continue
             cost += token.response_metadata.get("cost", 0)  # every model call, the scraper's included
-            if metadata.get("lc_agent_name") == AGENT_NAME and token.text:  # only the orchestrator's own words
+            if metadata.get("lc_agent_name") != AGENT_NAME:  # the scraper, inside learn_brand
+                continue
+            if token.text:
                 yield MessageEvent(text=token.text).model_dump()
+            for section in drafted_sections(token, drafts):
+                yield SectionDraftEvent(section=section).model_dump()
 
         state = await agent.aget_state(config)
         yield EmailReplacedEvent(email=state.values.get("email") or Email()).model_dump()
@@ -128,3 +134,29 @@ async def stream_turn(
         return
     logger.info("Turn done: session %s in %.1f s for $%.4f", session_id, time.time() - start, cost)
     yield DoneEvent(cost_usd=round(cost, 6), seconds=round(time.time() - start, 1)).model_dump()
+
+
+def drafted_sections(token: AIMessageChunk, drafts: dict) -> list[Section]:
+    """The sections whose write_section call the model has just finished writing, before the tool runs.
+
+    The arguments of each tool call arrive in pieces. `drafts` collects them per call; once
+    a call's pieces form valid JSON, the call is complete and its section is returned, once.
+    This keeps the preview streaming part by part even when the model writes several
+    sections in one answer.
+    """
+    finished = []
+    for piece in token.tool_call_chunks:
+        call = drafts.setdefault((token.id, piece["index"]), {"name": "", "args": "", "sent": False})
+        call["name"] += piece.get("name") or ""
+        call["args"] += piece.get("args") or ""
+        if call["name"] != "write_section" or call["sent"]:
+            continue
+        try:
+            arguments = json.loads(call["args"])
+            section = Section(id=arguments["section_id"], reasoning=arguments["reasoning"], content=arguments["content"])
+        except (json.JSONDecodeError, KeyError, TypeError):
+            continue  # not complete yet
+        call["sent"] = True
+        finished.append(section)
+    return finished
+
