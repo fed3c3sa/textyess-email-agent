@@ -12,7 +12,7 @@ import asyncio
 import shutil
 import time
 
-from app.agentic_infra.cost import CostCounter
+from app.agentic_infra.shared.cost import CostCounter
 from app.config import Settings, configure_logging
 from app.agentic_infra.agents.scraper.agent import scrape_brand
 from app.storage.brands import BrandStore

@@ -1,7 +1,7 @@
 from langchain_core.messages import AIMessage
 from langchain_core.outputs import ChatGeneration, LLMResult
 
-from app.agentic_infra.cost import CostCounter
+from app.agentic_infra.shared.cost import CostCounter
 
 
 def model_answer(cost: float | None) -> LLMResult:

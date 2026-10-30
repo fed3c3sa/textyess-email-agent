@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 from pydantic import ValidationError
 
-from app.agentic_infra.cost import CostCounter
+from app.agentic_infra.shared.cost import CostCounter
 from app.config import Settings
 from app.api.dependencies import get_settings, get_store, known_brand
 from app.schemas.api import FieldChange, LearnRequest

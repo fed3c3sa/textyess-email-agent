@@ -25,8 +25,8 @@ from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.messages import HumanMessage
 
 from app.config import SCRAPER_MAX_MODEL_CALLS, Settings
-from app.agentic_infra.images import labelled_image_blocks
-from app.agentic_infra.model import build_model
+from app.agentic_infra.shared.images import labelled_image_blocks
+from app.agentic_infra.shared.model import build_model
 from app.agentic_infra.prompts import render_system_prompt, render_text
 from app.schemas.design_system import DesignSystem, ScrapeResult
 from app.agentic_infra.agents.scraper.sources import prepare_pdf, read_website

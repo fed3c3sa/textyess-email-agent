@@ -5,7 +5,7 @@ import io
 
 from PIL import Image
 
-from app.agentic_infra.images import image_block, labelled_image_blocks
+from app.agentic_infra.shared.images import image_block, labelled_image_blocks
 from app.config import MAX_IMAGE_WIDTH, MAX_IMAGES_TO_MODEL
 from tests.conftest import png
 

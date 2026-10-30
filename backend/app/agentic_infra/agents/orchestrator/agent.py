@@ -23,9 +23,9 @@ from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 from app.config import Settings
 from app.agentic_infra.agents.scraper.sources import prepare_pdf
-from app.agentic_infra.images import IMAGE_SUFFIXES, labelled_image_blocks
+from app.agentic_infra.shared.images import IMAGE_SUFFIXES, labelled_image_blocks
 from app.agentic_infra.agents.orchestrator.tools import OrchestratorContext, OrchestratorState, build_orchestrator_tools
-from app.agentic_infra.model import build_model
+from app.agentic_infra.shared.model import build_model
 from app.agentic_infra.prompts import render_system_prompt
 from app.schemas.design_system import DesignSystem
 from app.schemas.email import Email, Section
