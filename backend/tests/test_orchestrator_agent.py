@@ -1,15 +1,14 @@
 """The orchestrator agent's plumbing, tested without a model: prompt, memory and streaming."""
 
 import asyncio
-from types import SimpleNamespace
 
-from langchain_core.messages import AIMessageChunk, HumanMessage
+from langchain_core.messages import HumanMessage
 from langgraph.graph import END, START, StateGraph
 
 from app.config import Settings
 from app.agentic_infra.agents.orchestrator.agent import (
     AGENT_NAME,
-    drafted_sections,
+    answer_event,
     open_memory,
     orchestrator_prompt,
     stream_turn,
@@ -67,31 +66,54 @@ def test_memory_saves_and_reads_back_the_email(tmp_path):
     assert asyncio.run(run()) == Email(sections=[section])
 
 
+class FakeRun:
+    """Stands in for LangGraph's v3 run stream: fixed protocol events, then a fixed final state."""
+
+    def __init__(self, events):
+        self.events = events
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *error):
+        pass
+
+    async def __aiter__(self):
+        for event in self.events:
+            yield event
+
+    async def output(self):
+        return {"email": Email(sections=[Section(id="subject", reasoning="r", content="Hi")])}
+
+
 class FakeAgent:
-    """Streams fixed chunks, then gives a fixed final state."""
+    def __init__(self, events):
+        self.events = events
 
-    def __init__(self, chunks):
-        self.chunks = chunks
-
-    async def astream(self, state, **options):
-        for chunk in self.chunks:
-            yield chunk
-
-    async def aget_state(self, config):
-        return SimpleNamespace(values={"email": Email(sections=[Section(id="subject", reasoning="r", content="Hi")])})
+    async def astream_events(self, state, **options):
+        return FakeRun(self.events)
 
 
-def token(text: str, agent: str, cost: float = 0) -> dict:
-    message = AIMessageChunk(content=text, response_metadata={"cost": cost} if cost else {})
-    return {"type": "messages", "data": (message, {"lc_agent_name": agent})}
+def protocol(method: str, data) -> dict:
+    return {"type": "event", "method": method, "params": {"namespace": [], "timestamp": 0, "data": data}}
+
+
+def text(words: str) -> dict:
+    return {"event": "content-block-delta", "index": 0, "delta": {"type": "text-delta", "text": words}}
+
+
+def tool_call(name: str, args: dict) -> dict:
+    return {"event": "content-block-finish", "index": 0, "content": {"type": "tool_call", "id": "c1", "name": name, "args": args}}
 
 
 def test_stream_turn_passes_tool_events_and_only_the_orchestrators_words():
     agent = FakeAgent(
         [
-            {"type": "custom", "data": {"type": "status", "text": "Reading the website..."}},
-            token("scraper thinking", "scraper", cost=0.002),  # the scraper, inside learn_brand
-            token("Done.", AGENT_NAME, cost=0.001),
+            protocol("custom", {"type": "status", "text": "Reading the website..."}),
+            protocol("messages", (text("scraper thinking"), {"lc_agent_name": "scraper"})),  # inside learn_brand
+            protocol("messages", ({"event": "message-finish", "metadata": {"cost": 0.002}}, {"lc_agent_name": "scraper"})),
+            protocol("messages", (text("Done."), {"lc_agent_name": AGENT_NAME})),
+            protocol("messages", ({"event": "message-finish", "metadata": {"cost": 0.001}}, {"lc_agent_name": AGENT_NAME})),
         ]
     )
 
@@ -106,32 +128,18 @@ def test_stream_turn_passes_tool_events_and_only_the_orchestrators_words():
     assert events[3]["cost_usd"] == 0.003  # both model calls are paid for
 
 
-def pieces(*chunks) -> AIMessageChunk:
-    """One streamed piece of a model answer, holding parts of its tool calls: (index, name, args)."""
-    return AIMessageChunk(
-        content="",
-        id="answer-1",
-        tool_call_chunks=[{"index": i, "name": name, "args": args, "id": None} for i, name, args in chunks],
-    )
+def test_a_finished_write_section_call_is_drafted_at_once():
+    hero = {"section_id": "hero", "reasoning": "Big promise.", "content": "<h1>-20%</h1>"}
 
-
-def test_a_section_is_drafted_as_soon_as_its_arguments_are_complete():
-    drafts = {}
-    hero = '{"section_id": "hero", "reasoning": "Big promise.", "content": "<h1>-20%</h1>"}'
-
-    first = drafted_sections(pieces((0, "write_section", hero[:20])), drafts)
-    second = drafted_sections(pieces((0, None, hero[20:50])), drafts)
-    third = drafted_sections(pieces((0, None, hero[50:]), (1, "remove_section", '{"section_id": "old"}')), drafts)
-    again = drafted_sections(pieces((2, "write_section", '{"section_id": "cta", "reasoning": "r", "content": "c"}')), drafts)
-
-    assert first == [] and second == []  # not valid JSON yet
-    assert [s.id for s in third] == ["hero"]  # complete; remove_section is not a draft
-    assert [s.id for s in again] == ["cta"]  # the next call in the same answer
+    assert answer_event(tool_call("write_section", hero))["section"]["id"] == "hero"
+    assert answer_event(tool_call("remove_section", {"section_id": "old"})) is None
+    assert answer_event(tool_call("write_section", {"section_id": "cta"})) is None  # incomplete: the tool explains
+    assert answer_event(text("Hi"))["text"] == "Hi"
 
 
 def test_a_refused_section_is_never_drafted():
-    merged = '{"section_id": "subject_preheader", "reasoning": "r", "content": "Subject: Hi"}'
-    assert drafted_sections(pieces((0, "write_section", merged)), {}) == []
+    merged = {"section_id": "subject_preheader", "reasoning": "r", "content": "Subject: Hi"}
+    assert answer_event(tool_call("write_section", merged)) is None
 
 
 def test_a_plain_message_is_just_text(store, brand_id):

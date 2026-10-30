@@ -83,7 +83,10 @@ async def scrape_brand(
         ],
         name="scraper",
     )
-    config = {"callbacks": callbacks} if callbacks else None  # e.g. a CostCounter
+    # Its own label: when learn_brand runs from the chat, the scraper's answers are not shown as the chat's text.
+    config = {"metadata": {"lc_agent_name": "scraper"}}
+    if callbacks:
+        config["callbacks"] = callbacks  # e.g. a CostCounter
     output = await agent.ainvoke({"messages": [message]}, config=config)
 
     logger.info("Scraper finished searching after %d messages", len(output["messages"]))

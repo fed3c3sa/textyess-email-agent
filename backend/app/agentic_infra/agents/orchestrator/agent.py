@@ -7,7 +7,6 @@ and yields the events the UI needs: chat text, sections and progress while the a
 works, then the final email, the cost and the time of the turn.
 """
 
-import json
 import logging
 import time
 from collections.abc import AsyncGenerator, AsyncIterator
@@ -17,9 +16,11 @@ from pathlib import Path
 import aiosqlite
 from langchain.agents import create_agent
 from langchain.agents.middleware import ModelRequest, dynamic_prompt
-from langchain_core.messages import AIMessageChunk, HumanMessage
+from langchain_core.messages import HumanMessage
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+from langgraph.stream import CustomTransformer
+from pydantic import ValidationError
 
 from app.config import Settings
 from app.agentic_infra.agents.scraper.sources import prepare_pdf
@@ -134,38 +135,38 @@ def user_message(
 async def stream_turn(agent, session_id: str, brand_id: str, message: HumanMessage) -> AsyncIterator[dict]:
     """Run one user message (see user_message) and yield its events as dicts.
 
+    Uses LangGraph's v3 event streaming (experimental): one ordered log of protocol events,
+    with the model's answers split into content blocks.
     While the agent works: 'message' (chat text), 'status' and section events.
     At the end: 'email_replaced' with the final email, so the preview is always
     right even after parallel tool calls, then 'done'. On failure: 'error'.
     """
     config = {"configurable": {"thread_id": session_id}}
     start, cost = time.time(), 0.0
-    drafts: dict = {}  # the tool calls the model is writing, see drafted_sections
     logger.info("Turn started: session %s, brand %s, message of %d characters", session_id, brand_id, len(message.text))
     try:
-        async for chunk in agent.astream(
+        run = await agent.astream_events(
             {"messages": [message]},
             config=config,
             context=OrchestratorContext(brand_id=brand_id),
-            stream_mode=["messages", "custom"],
-            version="v2",
-        ):
-            if chunk["type"] == "custom":  # events sent by the tools: sections and progress
-                yield chunk["data"]
-                continue
-            token, metadata = chunk["data"]
-            if not isinstance(token, AIMessageChunk):
-                continue
-            cost += token.response_metadata.get("cost", 0)  # every model call, the scraper's included
-            if metadata.get("lc_agent_name") != AGENT_NAME:  # the scraper, inside learn_brand
-                continue
-            if token.text:
-                yield MessageEvent(text=token.text).model_dump()
-            for section in drafted_sections(token, drafts):
-                yield SectionDraftEvent(section=section).model_dump()
-
-        state = await agent.aget_state(config)
-        yield EmailReplacedEvent(email=state.values.get("email") or Email()).model_dump()
+            version="v3",
+            transformers=[CustomTransformer],  # the events our tools send
+        )
+        async with run:
+            async for event in run:
+                data = event["params"]["data"]
+                if event["method"] == "custom":  # events sent by the tools: sections and progress
+                    yield data
+                    continue
+                if event["method"] != "messages":
+                    continue
+                block, metadata = data
+                if block["event"] == "message-finish":  # every model call, the scraper's included
+                    cost += block.get("metadata", {}).get("cost", 0)
+                if metadata.get("lc_agent_name") == AGENT_NAME and (ui_event := answer_event(block)):
+                    yield ui_event  # not the scraper's words, inside learn_brand
+            state = await run.output()
+        yield EmailReplacedEvent(email=state.get("email") or Email()).model_dump()
     except Exception as error:
         logger.exception("Turn failed: session %s", session_id)
         yield ErrorEvent(message=str(error)).model_dump()
@@ -174,28 +175,24 @@ async def stream_turn(agent, session_id: str, brand_id: str, message: HumanMessa
     yield DoneEvent(cost_usd=round(cost, 6), seconds=round(time.time() - start, 1)).model_dump()
 
 
-def drafted_sections(token: AIMessageChunk, drafts: dict) -> list[Section]:
-    """The sections whose write_section call the model has just finished writing, before the tool runs.
+def answer_event(block: dict) -> dict | None:
+    """The UI event for one content block of the orchestrator's answer, if it has one.
 
-    The arguments of each tool call arrive in pieces. `drafts` collects them per call; once
-    a call's pieces form valid JSON, the call is complete and its section is returned, once.
-    This keeps the preview streaming part by part even when the model writes several
-    sections in one answer.
+    Chat text streams as it comes. A write_section call becomes a section draft as soon as
+    the model finishes writing it, before the tool runs, so the preview streams part by part
+    even when the model writes several sections in one answer.
     """
-    finished = []
-    for piece in token.tool_call_chunks:
-        call = drafts.setdefault((token.id, piece["index"]), {"name": "", "args": "", "sent": False})
-        call["name"] += piece.get("name") or ""
-        call["args"] += piece.get("args") or ""
-        if call["name"] != "write_section" or call["sent"]:
-            continue
-        try:
-            arguments = json.loads(call["args"])
-            section = Section(id=arguments["section_id"], reasoning=arguments["reasoning"], content=arguments["content"])
-        except (json.JSONDecodeError, KeyError, TypeError):
-            continue  # not complete yet
-        call["sent"] = True
-        if not mixes_subject_and_preheader(section.id):  # the tool refuses it, so it never shows
-            finished.append(section)
-    return finished
+    if block["event"] == "content-block-delta" and block["delta"]["type"] == "text-delta":
+        return MessageEvent(text=block["delta"]["text"]).model_dump()
+    call = block.get("content") or {}
+    if block["event"] != "content-block-finish" or call.get("type") != "tool_call" or call["name"] != "write_section":
+        return None
+    args = call["args"]
+    try:
+        section = Section(id=args["section_id"], reasoning=args["reasoning"], content=args["content"])
+    except (KeyError, ValidationError):
+        return None  # the tool refuses it and explains why
+    if mixes_subject_and_preheader(section.id):  # the tool refuses it, so it never shows
+        return None
+    return SectionDraftEvent(section=section).model_dump()
 
