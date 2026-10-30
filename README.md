@@ -303,7 +303,7 @@ The model often writes several parts in one answer, and the tools only run when 
 
 The reasoning is a field of every part, written by the model before the content, so it reaches the UI with the part itself.
 
-LangGraph's newer event streaming (`astream_events(version="v3")`) streams tool-call arguments natively and would replace `drafted_sections`; it is still marked experimental in langgraph 1.2.18, so I kept the stable stream modes.
+LangGraph's newer event streaming (`astream_events(version="v3")`) gives each tool call with its arguments already parsed, so it replaces `drafted_sections`. It runs on the [`try-v3-streaming`](https://github.com/fed3c3sa/textyess-email-agent/tree/try-v3-streaming) branch: emails, edits and learning a brand from the chat all work there. But the code ends up about the same size, and the API is still marked experimental in langgraph 1.2.18, so `main` keeps the stable stream modes.
 
 ### Which model, and why
 
@@ -427,12 +427,22 @@ The evaluation can run as a testing step: a smoke test of 3 cases on every chang
 6. **Editing the design system on Setup** (the API already exists), **undo** and **reopening past chats**.
 7. **Send a test email** to a real inbox, and check rendering across email clients.
 8. **Prompt caching**, to cut the cost and time of the model calls.
-9. Move to LangGraph's event streaming when it is stable; Postgres and object storage for production.
+9. Move to LangGraph's event streaming when it is stable (it already works on the `try-v3-streaming` branch); Postgres and object storage for production.
 
 ---
 
 ## How I worked
 
-Built with Claude Code as a pair, one module at a time: I described each module and its decisions, the assistant proposed the code, I reviewed and adjusted it before moving on. Each assumption about a library was checked against the installed package, and each agent was verified with real runs on real brands. The commits follow that order.
+**Time spent: about 10 hours.** Model cost of building and testing: a few dollars on OpenRouter, and a few Firecrawl credits.
 
-Time spent: _to fill in_. Model cost of building and testing: a few dollars on OpenRouter, and a few Firecrawl credits.
+1. **Chose the stack.**
+2. **Drew the architecture by hand**, on paper ✏️🤓, then turned the drawing into a readable graph (the one in [Architecture](#3-architecture)).
+3. **Analyzed the flow** and asked whether it was the best one, then iterated until I found the backend architecture I wanted. This was the biggest part of the job.
+4. **Planned with Claude Code in plan mode**, then reviewed the plan.
+5. **Built the backend one module at a time**, starting from the Pydantic models. Every assumption about a library was checked against its docs and the installed package before writing the code.
+6. **Tested the agentic part with real cases** (real brands, real websites, PDFs, pasted emails) and validated it before going on. The models were picked here, from measured cost and quality: Sonnet to learn the brand, GLM to write.
+7. **Built the API around the agents**, and tested it.
+8. **Built the frontend**, and iterated on it until the current UI.
+9. **Ran a self-testing and improving loop with Claude** to find bugs and edge cases, and fixed them (for example the merged `subject_preheader` part; the scraper's JSON leaking into the chat is fixed on the v3 branch).
+10. **Summarized every choice and wrote this README**, with real cases: two brands, screenshots, measured costs and times.
+11. **Extra:** tried LangGraph's new event streaming (`astream_events(version="v3")`, still experimental) on the [`try-v3-streaming`](https://github.com/fed3c3sa/textyess-email-agent/tree/try-v3-streaming) branch.
